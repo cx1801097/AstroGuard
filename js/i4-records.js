@@ -3,7 +3,9 @@
 
   const field = id => document.getElementById(id);
   const local = /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(location.origin);
-  const offline = location.protocol === 'file:' ? window.CC_I4_OFFLINE : null;
+  // The mission snapshot ships inside the build, so it is available over file://, a local
+  // server and the hosted site alike. The server API stays in front when it is running.
+  const bundled = window.CC_I4_OFFLINE || null;
   const collections = {
     cabin: {
       label: 'Published chart day',
@@ -52,11 +54,21 @@
   async function getRows(name) {
     if (cache.has(name)) return cache.get(name);
     if (!pending.has(name)) {
-      const request = offline ? Promise.resolve(offline[name]) :
-        fetch('/api/i4-records?category=' + name, { signal: AbortSignal.timeout(8000) }).then(async response => {
-          if (!response.ok) throw new Error('I4 records unavailable');
-          return (await response.json()).records;
-        });
+      const request = (async () => {
+        if (local) {
+          try {
+            const response = await fetch('/api/i4-records?category=' + name, { signal: AbortSignal.timeout(8000) });
+            if (response.ok) {
+              const rows = (await response.json()).records;
+              if (Array.isArray(rows)) return rows;
+            }
+          } catch {
+            // The local server is optional - the bundled snapshot answers the same request.
+          }
+        }
+        if (bundled && Array.isArray(bundled[name])) return bundled[name];
+        throw new Error('I4 records unavailable');
+      })();
       pending.set(name, request.then(rows => {
         if (!Array.isArray(rows)) throw new Error('I4 collection unavailable');
         cache.set(name, rows);
@@ -385,15 +397,15 @@
     } catch {
       if (category !== next) return;
       category = undefined;
-      const status = 'Could not load the database. Open the local AstroGuard app and try again.';
+      const status = 'Could not load the database. Check the connection and try again.';
       if (!cache.has('cabin')) field('i4RecordsStatus').textContent = status;
       field('i4TableStatus').textContent = status;
     }
   }
 
   function open() {
-    if (!local && !offline) {
-      field('i4RecordsStatus').textContent = 'Open the local AstroGuard edition to review the supplied historical records.';
+    if (!local && !bundled) {
+      field('i4RecordsStatus').textContent = 'The historical records are not available in this build.';
       return;
     }
     field('i4RecordsControls').hidden = false;
