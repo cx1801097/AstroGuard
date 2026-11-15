@@ -17,7 +17,8 @@ function converseInput(input) {
 function readReview(input, response) {
   const content = response.output?.message?.content;
   const answer = content?.map(block => block.text || '').join('').trim();
-  const json = answer?.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? answer;
+  const fenced = [...(answer || '').matchAll(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/gi)];
+  const json = fenced.length === 1 ? fenced[0][1] : answer;
   return validateReview(input, JSON.parse(json || 'null'), MODEL, PROVIDER);
 }
 
