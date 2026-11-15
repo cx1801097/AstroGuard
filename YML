@@ -1,0 +1,18 @@
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - mkdir -p dist/css dist/js dist/data dist/new-mission/css dist/new-mission/js dist/new-mission/data/i4
+        - cp index.html dist/
+        - cp css/style.css dist/css/
+        - cp js/*.js dist/js/
+        - cp data/sample-mission.js data/i4-replay.js dist/data/
+        - cp new-mission/index.html dist/new-mission/
+        - cp new-mission/css/style.css dist/new-mission/css/
+        - cp new-mission/js/*.js dist/new-mission/js/
+        - cp new-mission/data/i4/i4-missions.js dist/new-mission/data/i4/
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
