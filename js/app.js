@@ -519,7 +519,7 @@
   }
 
   async function runGemini() {
-    if (geminiPending || !geminiScenario) return;
+    if ($('#optionalAiControls').hidden || geminiPending || !geminiScenario) return;
     var reviewing = geminiScenario;
     var button = $('#runGemini');
     var status = $('#geminiStatus');
@@ -998,7 +998,7 @@
   function boot() {
     buildCheckin();
     bindEvents();
-    localAISetup();
+    if (!$('#optionalAiControls').hidden) localAISetup();
   }
 
   function open(mode, mission, scope) {
