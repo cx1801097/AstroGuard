@@ -25,12 +25,27 @@ environment feed described under **Live environment data**.
 
 | Path | What it is |
 |---|---|
-| `index.html` | ASTROGUARD home screen. Opens the dashboard, the I4 playback, the mission console and the wearable import. |
-| `new-mission/` | The crew-operated mission console, embedded by the home screen in an iframe. See `new-mission/UPSTREAM.md`. |
+| `index.html` | ASTROGUARD landing page. Opens the dashboard, the I4 playback, the mission console and the wearable import. |
+| `new-mission/` | The crew-operated mission console, embedded by the landing page in an iframe. See `new-mission/UPSTREAM.md`. |
 | `js/` | Application logic for the portal, the mission console and the analyzers. |
-| `css/` | Styling for both screens. |
+| `css/` | Styling. `style.css` for the console, `home.css` for the landing page. |
+| `assets/` | Local images for the landing page, including the hero background. |
 | `data/i4/` | Inspiration4 reference dataset and its provenance notes. See `data/i4/SOURCE.md`. |
 | `data/cloud-ai-config.js` | Optional URL for the simulated cloud review. Empty hides the button. |
+
+## Landing page
+
+`index.html` opens on a landing page: a space backdrop, a primary navigation bar
+(Home, Mission, Health, Devices, Playback) and four large entry cards that open the
+Health Monitoring System, the I4 playback, the New mission console and the wearable
+import. The gear button opens a small settings panel with a *reduce motion* toggle
+and a link to the saved mission records.
+
+Everything on that page is local — the hero background is a bundled image and the
+icons are inline SVG — so the landing page renders identically with no network.
+
+The landing chrome belongs to the landing page only. Inside the console the
+workspace keeps its own brand bar and navigation, so the two never stack.
 
 ## What the console does
 

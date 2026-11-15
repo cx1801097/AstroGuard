@@ -6,18 +6,124 @@
 <meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
 <title>ASTROGUARD — In-Flight Health Console</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/home.css">
 </head>
-<body>
+<body class="is-landing">
+
+<div class="landing-backdrop" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <button type="button" class="site-brand" data-open="home">
+    <span class="site-brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6.3"/><ellipse cx="16" cy="16" rx="14.2" ry="5.7" transform="rotate(-22 16 16)"/></svg>
+    </span>
+    <span class="site-brand-name">ASTROGUARD</span>
+  </button>
+
+  <nav class="site-nav-links" aria-label="Primary">
+    <button type="button" class="site-nav-link is-active" data-open="home" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.3"/><path d="M12 12l3.7-3.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+      <span>Home</span>
+    </button>
+    <button type="button" class="site-nav-link" data-open="missionConsole">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2v4.2M12 16.6v4.2"/><rect x="7.5" y="7.4" width="9" height="9.2" rx="2.2"/><path d="M7.7 9.7 3.4 7.5v4.3l4.3 1.2M16.3 9.7l4.3-2.2v4.3l-4.3 1.2"/></svg>
+      <span>Mission</span>
+    </button>
+    <button type="button" class="site-nav-link" data-open="simulator">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.4S4.4 15.6 4.4 10.6A4.3 4.3 0 0 1 12 8.3a4.3 4.3 0 0 1 7.6 2.3c0 5-7.6 9.8-7.6 9.8Z"/></svg>
+      <span>Health</span>
+    </button>
+    <button type="button" class="site-nav-link" data-open="wearable">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.3" y="5.9" width="11.4" height="12.2" rx="3.4"/><path d="M9.6 5.9 10.2 3h3.6l.6 2.9M9.6 18.1l.6 2.9h3.6l.6-2.9"/></svg>
+      <span>Devices</span>
+    </button>
+    <button type="button" class="site-nav-link" data-open="replay">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M10.2 8.4 15.9 12l-5.7 3.6Z" fill="currentColor" stroke="none"/></svg>
+      <span>Playback</span>
+    </button>
+  </nav>
+
+  <div class="site-nav-end">
+    <button type="button" class="site-icon-btn" id="siteSettingsBtn" aria-expanded="false" aria-controls="siteSettings" title="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.9v2.3M12 18.8v2.3M2.9 12h2.3M18.8 12h2.3M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M5.5 18.5l1.6-1.6M16.9 7.1l1.6-1.6"/><circle cx="12" cy="12" r="6.6" stroke-dasharray="2.6 3.4"/></svg>
+      <span class="sr-only">Settings</span>
+    </button>
+    <div class="site-settings" id="siteSettings" hidden>
+      <h2 class="site-settings-title">Settings</h2>
+      <label class="site-setting-row">
+        <input type="checkbox" id="siteReduceMotion">
+        <span>Reduce motion</span>
+      </label>
+      <button type="button" class="site-setting-link" data-open="mission">Mission setup &amp; saved records</button>
+      <p class="site-settings-note">ASTROGUARD runs fully offline. Live NASA ground data needs a network connection.</p>
+    </div>
+  </div>
+</header>
 
 <main id="portal" class="portal">
-  <section id="homeView" class="portal-view">
-    <h1>ASTROGUARD</h1>
-    <p>Review crew health, spot changes in vital signs, and prepare a check-in for ground review.</p>
-    <div class="portal-options">
-      <button type="button" class="card portal-option" data-open="simulator"><strong>Health Monitoring System</strong><span>Explore the dashboard with a simulated mission.</span></button>
-      <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
-      <button type="button" class="card portal-option" data-open="missionConsole"><strong>New mission</strong><span>Open the crew-operated mission console.</span></button>
-      <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Connect live over Bluetooth or import readings from your watch app.</span></button>
+  <section id="homeView" class="portal-view home-view">
+    <div class="home-hero">
+      <h1 class="home-title">ASTROGUARD</h1>
+      <span class="home-rule" aria-hidden="true"></span>
+      <p class="home-lede">Review crew health, spot changes in vital signs, and prepare a check-in for ground review.</p>
+    </div>
+
+    <div class="home-cards">
+      <button type="button" class="home-card home-card--blue" data-open="simulator">
+        <span class="home-card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M2.4 12.3h4.2l1.9-5.4 2.8 10.6 2.4-7.2 1.7 3.6h6.2"/></svg>
+        </span>
+        <span class="home-card-copy">
+          <strong>Health Monitoring System</strong>
+          <span>Explore the dashboard with a simulated mission.</span>
+        </span>
+        <span class="home-card-go" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4.6 12h13.8M12.8 6.4 18.4 12l-5.6 5.6"/></svg>
+        </span>
+        <svg class="home-card-deco" viewBox="0 0 220 90" aria-hidden="true" preserveAspectRatio="none"><path d="M0 64h44l9-7 7-27 10 55 8-33 7 12h34l8-6 6-19 9 38 7-25 5 12h46" vector-effect="non-scaling-stroke"/></svg>
+      </button>
+
+      <button type="button" class="home-card home-card--purple" data-open="replay">
+        <span class="home-card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M10.2 8.4 15.9 12l-5.7 3.6Z" fill="currentColor" stroke="none"/></svg>
+        </span>
+        <span class="home-card-copy">
+          <strong>I4 mission playback</strong>
+          <span>Review Inspiration4 by mission day.</span>
+        </span>
+        <span class="home-card-go" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4.6 12h13.8M12.8 6.4 18.4 12l-5.6 5.6"/></svg>
+        </span>
+        <svg class="home-card-deco home-card-deco--planet" viewBox="0 0 220 130" aria-hidden="true" preserveAspectRatio="xMidYMax slice"><ellipse cx="166" cy="112" rx="58" ry="50"/><ellipse class="deco-faint" cx="166" cy="112" rx="58" ry="15"/></svg>
+      </button>
+
+      <button type="button" class="home-card home-card--teal" data-open="missionConsole">
+        <span class="home-card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2.5c3.3 2.5 4.9 5.8 4.9 9.4v3.4H7.1v-3.4c0-3.6 1.6-6.9 4.9-9.4Z"/><circle cx="12" cy="9.4" r="1.8"/><path d="M7.1 12.7 4.4 15.1v3.7l2.7-1.5M16.9 12.7l2.7 2.4v3.7l-2.7-1.5M10.2 18.6c.4 1.6 1 2.7 1.8 3 .8-.3 1.4-1.4 1.8-3"/></svg>
+        </span>
+        <span class="home-card-copy">
+          <strong>New mission</strong>
+          <span>Open the crew-operated mission console.</span>
+        </span>
+        <span class="home-card-go" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4.6 12h13.8M12.8 6.4 18.4 12l-5.6 5.6"/></svg>
+        </span>
+        <svg class="home-card-deco home-card-deco--arc" viewBox="0 0 220 130" aria-hidden="true" preserveAspectRatio="xMidYMax slice"><circle cx="170" cy="116" r="64"/><circle class="deco-faint" cx="170" cy="116" r="78"/></svg>
+      </button>
+
+      <button type="button" class="home-card home-card--amber" data-open="wearable">
+        <span class="home-card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="6.3" y="5.9" width="11.4" height="12.2" rx="3.4"/><path d="M9.6 5.9 10.2 3h3.6l.6 2.9M9.6 18.1l.6 2.9h3.6l.6-2.9M9.8 12.4h4.4"/></svg>
+        </span>
+        <span class="home-card-copy">
+          <strong>Connect wearable device</strong>
+          <span>Connect live over Bluetooth or import readings from your watch app.</span>
+        </span>
+        <span class="home-card-go" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4.6 12h13.8M12.8 6.4 18.4 12l-5.6 5.6"/></svg>
+        </span>
+        <svg class="home-card-deco home-card-deco--wave" viewBox="0 0 220 90" aria-hidden="true" preserveAspectRatio="none"><path d="M0 62h40l7-6 6-20 9 40 8-28 6 14h38l8-6 5-16 8 32 7-22 5 10h52" vector-effect="non-scaling-stroke"/></svg>
+      </button>
     </div>
   </section>
   <section id="missionConsoleView" class="portal-view" hidden>
@@ -500,8 +606,14 @@
 </div>
 
 <footer class="footer">
-  <span>ASTROGUARD · prototype built for the NASA Space Apps Challenge · rule-based decision support, <strong>not a medical device</strong></span>
-  <span class="muted">Offline-capable · no network required</span>
+  <span class="footer-item">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.2v5.4"/><circle cx="12" cy="7.9" r="1.05" fill="currentColor" stroke="none"/></svg>
+    <span>ASTROGUARD · prototype built for the NASA Space Apps Challenge · rule-based decision support, <strong>not a medical device</strong></span>
+  </span>
+  <span class="footer-item muted">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.7 9.1a14.4 14.4 0 0 1 18.6 0M6 12.7a9.5 9.5 0 0 1 12 0M9.3 16.2a4.5 4.5 0 0 1 5.4 0"/><circle cx="12" cy="19.3" r="1.1" fill="currentColor" stroke="none"/></svg>
+    <span>Offline-capable · no network required</span>
+  </span>
 </footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

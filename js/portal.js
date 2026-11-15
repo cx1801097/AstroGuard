@@ -33,9 +33,39 @@
       if (Array.isArray(saved)) records = saved;
     } catch {}
 
+    /* ---- landing page chrome: primary nav + settings popover ---- */
+    const navLinks = [...document.querySelectorAll('.site-nav-link')];
+    const settingsBtn = byId('siteSettingsBtn');
+    const settingsPanel = byId('siteSettings');
+    const motionToggle = byId('siteReduceMotion');
+    const motionKey = 'astroguard.reduce-motion';
+
+    function syncNavActive(next) {
+      for (const link of navLinks) {
+        const active = link.dataset.open === next;
+        link.classList.toggle('is-active', active);
+        if (active) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      }
+    }
+
+    function closeSettings() {
+      if (!settingsPanel || settingsPanel.hidden) return;
+      settingsPanel.hidden = true;
+      settingsBtn?.setAttribute('aria-expanded', 'false');
+    }
+
+    function applyMotion(reduce) {
+      document.body.classList.toggle('reduce-motion', reduce);
+      if (motionToggle) motionToggle.checked = reduce;
+    }
+
     function show(next, moveFocus = true) {
       if (next !== 'dashboard' && !byId('editInventoryForm').hidden) closeInventoryEditor();
       view = next;
+      document.body.classList.toggle('is-landing', next === 'home');
+      syncNavActive(next);
+      if (next !== 'home') closeSettings();
       const dashboard = ['simulator', 'replay', 'dashboard'].includes(next);
       byId('portal').hidden = dashboard;
       consoleView.hidden = !dashboard;
@@ -231,6 +261,31 @@
       if (button.dataset.open === 'wearable') wearableBack = view;
       show(button.dataset.open);
     }));
+
+    if (settingsBtn && settingsPanel) {
+      settingsBtn.addEventListener('click', event => {
+        event.stopPropagation();
+        const open = settingsPanel.hidden;
+        settingsPanel.hidden = !open;
+        settingsBtn.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', event => {
+        if (settingsPanel.hidden) return;
+        if (settingsPanel.contains(event.target) || settingsBtn.contains(event.target)) return;
+        closeSettings();
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeSettings();
+      });
+    }
+    if (motionToggle) {
+      motionToggle.addEventListener('change', () => {
+        applyMotion(motionToggle.checked);
+        try { localStorage.setItem(motionKey, motionToggle.checked ? '1' : '0'); } catch {}
+      });
+      try { applyMotion(localStorage.getItem(motionKey) === '1'); } catch {}
+    }
+
     byId('wearableBack').addEventListener('click', () => show(wearableBack));
     byId('openSimulatorReview').addEventListener('click', () => {
       show('simulator');

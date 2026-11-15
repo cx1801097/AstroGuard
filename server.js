@@ -93,7 +93,7 @@ const server = http.createServer((req, res) => {
      cover every script the pages actually load, or the console opens
      with silent 404s and a half-built screen. The patterns below
      name the current set; a new asset must be added here too. */
-  const appAsset = /^\/(?:index\.html|css\/style\.css|js\/[a-z0-9-]+\.js|data\/(?:sample-mission|i4-replay|i4-offline|cloud-ai-config|astroguard-evidence)\.js)$/;
+  const appAsset = /^\/(?:index\.html|css\/(?:style|home)\.css|js\/[a-z0-9-]+\.js|data\/(?:sample-mission|i4-replay|i4-offline|cloud-ai-config|astroguard-evidence)\.js|assets\/hero-space\.jpg)$/;
   const missionAsset = /^\/new-mission\/(?:index\.html|css\/style\.css|js\/[a-z0-9-]+\.js|data\/i4\/i4-missions\.js)$/;
   if (!appAsset.test(rel) && !missionAsset.test(rel)) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
