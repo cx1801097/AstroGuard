@@ -185,3 +185,40 @@ test('named mission records preserve metadata and wearable provenance without re
   assert.equal(mission.details.vehicle, 'Test vehicle');
   assert.equal(mission.entries[0].wearable.heartRate.provider, 'ble-hrs');
 });
+
+test('crew suggestion combines scored blood pressure, glucose and hazard alerts with vital findings', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const current = checkIn(9, {
+    heartRate: 103, spo2: 98, systolic: 220, diastolic: 136, glucose: 51, cabinCo2Avg: 4
+  });
+  const alerts = window.CC_SCORING.evaluate(current.values, current, ['visionChanges']).alerts;
+  const hazards = require('../js/hazard-monitor').evaluate(current);
+  const suggestion = crewSuggestion(evaluate(current), {}, ['visionChanges'], alerts, hazards);
+  assert.equal(suggestion.severity, 'CRITICAL');
+  assert.deepEqual(suggestion.findingCodes.map(item => item.metric),
+    ['systolic', 'diastolic', 'glucose', 'heartRate', 'visionChanges', 'cabinCo2']);
+  assert.match(suggestion.situation, /220 mmHg.*136 mmHg.*51 mg\/dL/);
+  assert.match(suggestion.next, /contact the flight surgeon now/);
+  assert.match(suggestion.situation, /cabin CO₂/);
+  const request = require('../gemini').scenario({
+    source: current.source, severity: suggestion.severity, findings: suggestion.findingCodes
+  });
+  assert.deepEqual(request.findings, suggestion.findingCodes);
+});
+
+test('a flagged pressure sensor is excluded while a chronic bone finding remains visible', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const current = checkIn(9, { heartRate: 70, spo2: 98, systolic: 220, boneDensityPct: -6 },
+    { quality: { systolic: 'invalid' } });
+  const alerts = window.CC_SCORING.evaluate(current.values, current).alerts;
+  const suggestion = crewSuggestion(evaluate(current), {}, [], alerts);
+  assert.equal(suggestion.severity, 'WARNING');
+  assert.match(suggestion.situation, /Bone density change/);
+  assert.doesNotMatch(suggestion.situation, /220|Systolic/);
+});

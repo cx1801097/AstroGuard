@@ -2,8 +2,10 @@
 
 // Only enumerated scenario facts can leave the app. No free text or raw measurements.
 const MODEL = 'gemini-2.5-flash-lite';
-const kinds = new Set(['chest_pain', 'alert', 'baseline_change', 'missing', 'activity_unknown', 'exercise', 'no_alert']);
-const metrics = new Set(['spo2', 'heartRate']);
+const kinds = new Set(['chest_pain', 'alert', 'baseline_change', 'missing', 'activity_unknown', 'exercise', 'no_alert', 'symptom']);
+const vitalMetrics = new Set(['spo2', 'heartRate']);
+const alertMetrics = new Set([...vitalMetrics, 'systolic', 'diastolic', 'glucose', 'temperature',
+  'sleepHours', 'mood', 'exerciseMinutes', 'radiationDose', 'boneDensityPct', 'cabinCo2', 'wbc']);
 const clarifications = {
   verify_activity: 'Confirm whether the crew member was resting or exercising when the sample was taken.',
   verify_sensor: 'Check whether a missing or unusual reading can be verified with the available sensor.',
@@ -13,12 +15,15 @@ const clarifications = {
 
 function scenario(body) {
   if (body?.source !== 'simulated' || !['NORMAL', 'WARNING', 'CRITICAL', 'UNKNOWN'].includes(body.severity) ||
-      !Array.isArray(body.findings) || body.findings.length < 1 || body.findings.length > 6) return null;
+      !Array.isArray(body.findings) || body.findings.length < 1 || body.findings.length > 24) return null;
   const findings = [];
   for (const entry of body.findings) {
     if (!entry || !kinds.has(entry.kind)) return null;
-    const needsMetric = ['alert', 'baseline_change', 'missing'].includes(entry.kind);
-    if (needsMetric && !metrics.has(entry.metric)) return null;
+    const validMetrics = entry.kind === 'alert' ? alertMetrics
+      : ['baseline_change', 'missing'].includes(entry.kind) ? vitalMetrics : null;
+    const needsMetric = Boolean(validMetrics) || entry.kind === 'symptom';
+    if (validMetrics && !validMetrics.has(entry.metric)) return null;
+    if (entry.kind === 'symptom' && entry.metric !== 'visionChanges') return null;
     findings.push(needsMetric ? { kind: entry.kind, metric: entry.metric } : { kind: entry.kind });
   }
   const phase = ['Preflight', 'Ascent', 'In orbit', 'Transit', 'Surface operations', 'Reentry', 'Recovery'].includes(body.phase)

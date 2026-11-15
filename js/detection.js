@@ -140,7 +140,7 @@
         if (count >= config.persistenceDays) persistent.add(key);
         critical ||= hit.severity === 'CRITICAL';
         warning = true;
-        findings.push({ metric: key, value: sample.value, kind: 'threshold' });
+        findings.push({ metric: key, value: sample.value, kind: 'threshold', severity: hit.severity });
         reasons.push(display + ' meets the ' + hit.severity.toLowerCase() + ' threshold (' +
           hit.limit + '). Consecutive flagged days: ' + count + '.');
       }
@@ -210,16 +210,15 @@
     ].join('\n');
   }
 
-  function crewSuggestion(assessment, resources = {}, symptoms = []) {
+  function crewSuggestion(assessment, resources = {}, symptoms = [], alerts = [], hazards = []) {
     const chestPain = symptoms.includes('chestPain');
-    const severity = chestPain ? 'CRITICAL' : assessment.severity;
-    const statements = [];
-    const findingCodes = [];
-    function addObservation(text, kind, metric) {
-      statements.push(text);
-      findingCodes.push({ kind, metric });
+    const observations = [];
+    const acuteMetrics = ['systolic', 'diastolic', 'glucose', 'temperature'];
+    const vitalMetrics = ['spo2', 'heartRate'];
+    function addObservation(text, kind, metric, urgency = 0) {
+      observations.push({ text, code: { kind, metric }, urgency });
     }
-    if (chestPain) addObservation('Chest pain or pressure was reported.', 'chest_pain');
+    if (chestPain) addObservation('Chest pain or pressure was reported.', 'chest_pain', undefined, 4);
     const concerning = new Set();
     for (const finding of assessment.findings) {
       concerning.add(finding.metric);
@@ -228,15 +227,29 @@
       const unit = oxygen ? '%' : ' beats per minute';
       const reason = finding.kind === 'change' ? ' That differs from your usual readings.' : ' That crossed an alert limit.';
       addObservation(label + ' is ' + finding.value + unit + '.' + reason,
-        finding.kind === 'change' ? 'baseline_change' : 'alert', finding.metric);
+        finding.kind === 'change' ? 'baseline_change' : 'alert', finding.metric, finding.severity === 'CRITICAL' ? 3 : 2);
     }
+    const vitalObservationCount = observations.length;
+    const hazardMetrics = new Set(hazards.filter(item => item.status === 'WARNING').map(item => item.id));
+    for (const alert of alerts) {
+      if (vitalMetrics.includes(alert.id) || alert.id === 'chestPain' || hazardMetrics.has(alert.id)) continue;
+      const critical = alert.level >= 4 && acuteMetrics.includes(alert.id);
+      addObservation(alert.text, alert.type === 'symptom' ? 'symptom' : 'alert', alert.id, critical ? 3 : 2);
+    }
+    for (const hazard of hazards) {
+      if (hazard.status === 'WARNING') {
+        addObservation(hazard.title + ': ' + hazard.detail + ' ' + hazard.next, 'alert', hazard.id, 2);
+      }
+    }
+    const severity = chestPain || assessment.severity === 'CRITICAL' || observations.some(item => item.urgency === 3)
+      ? 'CRITICAL' : assessment.severity === 'WARNING' || observations.length > vitalObservationCount ? 'WARNING' : assessment.severity;
     for (const [key, label] of [['spo2', 'blood oxygen'], ['heartRate', 'heart rate']]) {
       if (assessment.quality[key] === 'usable') continue;
       concerning.add(key);
       addObservation('There is no usable ' + label + ' reading.', 'missing', key);
     }
     if (assessment.activity === 'unknown') addObservation('The activity during the reading is unknown.', 'activity_unknown');
-    if (!statements.length) addObservation(assessment.activity === 'exercise'
+    if (!observations.length) addObservation(assessment.activity === 'exercise'
       ? 'Blood oxygen did not trigger an alert. Heart rate was recorded during exercise.'
       : 'The available readings did not trigger an alert.', assessment.activity === 'exercise' ? 'exercise' : 'no_alert');
 
@@ -263,7 +276,10 @@
       if (resources.medical || resources.procedures) resource += (resource ? ' ' : '') + 'Share the onboard medical inventory and checklist references with the medical officer.';
       if (resources.food || resources.water) resource += (resource ? ' ' : '') + 'Have the food and water inventory ready if the medical officer asks about intake.';
     }
-    return { severity, situation: statements.join(' '), next, resource, observations: statements, findingCodes };
+    observations.sort((left, right) => right.urgency - left.urgency);
+    const statements = observations.map(item => item.text);
+    return { severity, situation: statements.join(' '), next, resource, observations: statements,
+      findingCodes: observations.map(item => item.code) };
   }
 
   const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion };

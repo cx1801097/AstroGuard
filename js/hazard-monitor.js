@@ -37,28 +37,28 @@
     const high = get('wbcHigh', 0, 1000);
     const sleepBelow = sleep !== null && target !== null && sleep < target;
     const knownRange = low !== null && high !== null && low < high;
-    const result = (title, warning, compared, detail, next, url) => ({
-      title, status: warning ? 'WARNING' : compared ? 'WITHIN CHECK LIMIT' : 'UNKNOWN', detail, next, url
+    const result = (id, title, warning, compared, detail, next, url) => ({
+      id, title, status: warning ? 'WARNING' : compared ? 'WITHIN CHECK LIMIT' : 'UNKNOWN', detail, next, url
     });
     return [
-      result('Radiation', dose !== null && doseLimit !== null && dose >= doseLimit, dose !== null && doseLimit !== null,
+      result('radiationDose', 'Radiation', dose !== null && doseLimit !== null && dose >= doseLimit, dose !== null && doseLimit !== null,
         dose === null ? 'No usable cumulative personal dose.' : dose + ' mSv cumulative personal dose' +
           (doseLimit === null ? '. Enter the mission review limit for the same dose period.' : ' against a ' + doseLimit + ' mSv mission review limit.'),
         'Verify the dosimeter and review the mission’s radiation procedures when the limit is reached.'),
-      result('Isolation and confinement', sleepBelow, sleep !== null && target !== null,
+      result('sleepHours', 'Isolation and confinement', sleepBelow, sleep !== null && target !== null,
         (sleep === null ? 'No usable sleep record.' : sleep + ' h of sleep' +
           (target === null ? '. No sleep target set.' : ' against a ' + target + ' h target.')) +
           (sleepBelow && previousSleep !== null && previousSleep < target ? ' Below target on two consecutive flight days.' : '') +
           (mood === null ? '' : ' Reported mood: ' + mood + '/5.'),
         'Review rest and workload when sleep falls below the mission target. Track mood separately.'),
-      result('Altered gravity and bone loss', bone !== null && boneLimit !== null && bone <= -boneLimit, bone !== null && boneLimit !== null,
+      result('boneDensityPct', 'Altered gravity and bone loss', bone !== null && boneLimit !== null && bone <= -boneLimit, bone !== null && boneLimit !== null,
         bone === null ? 'No comparable bone-density measurement.' : bone + '% change from baseline' +
           (boneLimit === null ? '. Enter the mission review point for that measurement site.' : ' with a ' + boneLimit + '% loss review point.'),
         'Compare scans from the same site and review scheduled exercise with the mission medical team.'),
-      result('Closed environment · cabin CO₂', co2 !== null && co2 > 3, co2 !== null,
+      result('cabinCo2', 'Closed environment · cabin CO₂', co2 !== null && co2 > 3, co2 !== null,
         co2 === null ? 'No verified one-hour cabin CO₂ average.' : co2 + ' mmHg over one hour. The nominal NASA limit is 3 mmHg.',
         'Confirm the cabin reading and follow the vehicle’s environmental procedures if it exceeds the limit.', co2Reference),
-      result('Immune monitoring · white blood cells', wbc !== null && knownRange && (wbc < low || wbc > high), wbc !== null && knownRange,
+      result('wbc', 'Immune monitoring · white blood cells', wbc !== null && knownRange && (wbc < low || wbc > high), wbc !== null && knownRange,
         wbc === null ? 'No usable white blood cell count.' : wbc + ' thousand/µL' +
           (knownRange ? ' against the reported lab interval of ' + low + '–' + high + ' thousand/µL.'
             : '. Enter the matching lab report’s lower and upper limits.'),
@@ -91,13 +91,13 @@
     });
   }
 
-  function render(container, input) {
+  function render(container, input, findings = evaluate(input)) {
     const source = document.createElement('p');
     source.className = 'muted';
     source.textContent = input.source === 'measured' ? 'Measured check-in' : input.source === 'simulated' ?
       'Simulated check-in · demonstration' : 'Select measured or simulated source to assess this check-in.';
     const list = document.createElement('ul');
-    for (const finding of evaluate(input)) {
+    for (const finding of findings) {
       const item = document.createElement('li');
       const heading = document.createElement('strong');
       heading.textContent = finding.title + ' · ' + finding.status;
