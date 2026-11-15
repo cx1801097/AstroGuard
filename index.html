@@ -57,6 +57,23 @@
         <input id="crewName" type="text" maxlength="24" autocomplete="off" placeholder="CDR-1">
       </div>
 
+      <div class="field">
+        <label for="readingSource">Reading source</label>
+        <select id="readingSource">
+          <option value="measured">Measured</option>
+          <option value="simulated">Simulated</option>
+          <option value="digitized">Digitized historical data</option>
+          <option value="unknown">Unspecified</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="readingActivity">Activity during vital readings</label>
+        <select id="readingActivity">
+          <option value="unknown">Unspecified</option>
+          <option value="rest">At rest</option>
+          <option value="exercise">During or just after exercise</option>
+        </select>
+      </div>
       <div id="metricList" class="metric-list"></div>
 
       <p class="section-label">Self-reported symptoms</p>
@@ -124,6 +141,7 @@
 
       <!-- ACTION PLAN -->
       <div class="pane" data-pane="plan">
+        <div id="healthDetection" class="card alert-card" aria-live="polite"></div>
         <div id="planSummary" class="plan-summary"></div>
         <div id="alertBlock"></div>
         <div id="planList" class="plan-list"></div>
@@ -160,6 +178,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
+<script src="js/detection.js"></script>
 <script src="js/scoring.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>

@@ -172,6 +172,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; }
 .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
 .field label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .field input,
+.field select,
 .field textarea {
   background: #08111c;
   border: 1px solid var(--line);
@@ -184,7 +185,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; }
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   resize: vertical;
 }
-.field input:focus, .field textarea:focus {
+.field input:focus, .field select:focus, .field textarea:focus {
   border-color: rgba(57, 208, 255, 0.55);
   box-shadow: 0 0 0 3px rgba(57, 208, 255, 0.12);
 }
@@ -554,6 +555,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ============================ PLAN ============================ */
 .plan-summary { margin-bottom: 12px; }
+#healthDetection { margin-bottom: 12px; }
 .plan-hero {
   display: flex; gap: 16px; align-items: center;
   padding: 16px 18px;

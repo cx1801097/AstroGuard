@@ -1,0 +1,114 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const vm = require('node:vm');
+const { evaluate } = require('../js/detection');
+const fixtures = require('./fixtures/health-cases.json');
+
+function checkIn(day, values, metadata = {}) {
+  return { day, values, activity: 'rest', source: 'simulated', crew: 'A', ...metadata };
+}
+
+const stable = Array.from({ length: 7 }, (_, index) => checkIn(index + 1, { spo2: 98, heartRate: 66 }));
+
+for (const [name, fixture] of Object.entries(fixtures)) {
+  test(name + ': ' + fixture.description, () => {
+    const current = checkIn(9, fixture.values, { activity: fixture.activity, quality: fixture.quality });
+    const history = fixture.prior ? [checkIn(8, fixture.prior)] : [];
+    if (name === 'offline') {
+      const unavailable = () => assert.fail('Attempted network or storage access');
+      const browser = vm.createContext({
+        window: {},
+        fetch: unavailable,
+        XMLHttpRequest: unavailable
+      });
+      Object.defineProperty(browser.window, 'localStorage', { get: unavailable });
+      vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/detection.js'), 'utf8'), browser);
+      assert.equal(browser.window.CC_DETECTION.evaluate(current, history).severity, fixture.expected);
+    } else {
+      assert.equal(evaluate(current, history).severity, fixture.expected);
+    }
+  });
+}
+
+test('absolute oxygen boundaries and exercise override', () => {
+  for (const [spo2, status] of [[88, 'CRITICAL'], [89, 'WARNING'], [92, 'WARNING'], [93, 'NORMAL']]) {
+    assert.equal(evaluate(checkIn(9, { spo2, heartRate: 150 }, { activity: 'exercise' })).severity, status);
+  }
+});
+
+test('fusion requires adjacent days with both factors and valid context', () => {
+  const current = checkIn(9, { spo2: 91, heartRate: 112 });
+  const prior = { spo2: 92, heartRate: 107 };
+  for (const history of [
+    [checkIn(7, prior)],
+    [checkIn(8, { ...prior, heartRate: 72 })],
+    [checkIn(8, prior, { activity: 'exercise' })],
+    [checkIn(8, prior, { quality: { spo2: 'invalid' } })],
+    [checkIn(8, prior), checkIn(8, prior)]
+  ]) assert.equal(evaluate(current, history).severity, 'WARNING');
+  const fused = evaluate(current, [checkIn(8, prior)]);
+  assert.match(fused.reasons.join(' '), /both crossed safety thresholds/);
+});
+
+test('personal baseline uses a scale floor and requires sustained deviation', () => {
+  const values = { spo2: 98, heartRate: 82 };
+  const first = evaluate(checkIn(8, values), stable);
+  assert.equal(first.severity, 'NORMAL');
+  assert.deepEqual(first.baselines.heartRate, { count: 7, median: 66, scale: 3 });
+  assert.match(first.reasons.join(' '), /departs from the resting median/);
+  assert.equal(evaluate(checkIn(9, values), [...stable, checkIn(8, values)]).severity, 'WARNING');
+});
+
+test('baseline excludes exercise, invalid readings, safety alerts, old and future data', () => {
+  const history = [
+    ...stable, checkIn(8, { spo2: 88, heartRate: 66 }, { quality: { heartRate: 'invalid' } }),
+    checkIn(9, { spo2: 98, heartRate: 145 }, { activity: 'exercise' }),
+    checkIn(10, { spo2: 98, heartRate: 70 }),
+    checkIn(11, { spo2: 98, heartRate: 70 }),
+    checkIn(-25, { spo2: 98, heartRate: 70 })
+  ];
+  const result = evaluate(checkIn(10, { spo2: 98, heartRate: 66 }), history);
+  assert.equal(result.baselines.spo2.count, 7);
+  assert.equal(result.baselines.heartRate.count, 7);
+});
+
+test('baseline is isolated by crew and provenance', () => {
+  for (const metadata of [{ crew: 'B' }, { crew: '' }, { source: 'measured' }, { source: 'digitized' }, { source: 'unknown' }]) {
+    const result = evaluate(checkIn(8, { spo2: 98, heartRate: 82 }, metadata), stable);
+    assert.equal(result.baselines.heartRate.count, 0);
+  }
+});
+
+test('missing or malformed data produces UNKNOWN unless a trusted alert takes precedence', () => {
+  const bad = checkIn(1, { spo2: '98', heartRate: NaN });
+  const unknown = evaluate(bad);
+  assert.equal(unknown.severity, 'UNKNOWN');
+  assert.deepEqual(unknown.quality, { spo2: 'invalid', heartRate: 'invalid' });
+  assert.equal(evaluate(checkIn(1, { spo2: 98, heartRate: 70 }, { activity: 'unknown' })).severity, 'UNKNOWN');
+  assert.equal(evaluate(checkIn(1, { spo2: 92 })).severity, 'WARNING');
+});
+
+test('threshold overrides affect evaluation without altering defaults', () => {
+  const reading = checkIn(1, { spo2: 93, heartRate: 73 });
+  assert.equal(evaluate(reading, [], { oxygenWarning: 94 }).severity, 'WARNING');
+  assert.equal(evaluate(reading).severity, 'NORMAL');
+});
+
+test('browser storage import/export preserves context, quality, and missing values', () => {
+  const browser = vm.createContext({ window: {} });
+  for (const file of ['detection', 'storage']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), browser);
+  }
+  const storage = browser.window.CC_STORAGE;
+  const legacy = { day: 1, values: { spo2: 98 } };
+  const tagged = checkIn(2, { heartRate: 70 }, { source: 'digitized', quality: { heartRate: 'invalid' } });
+  const record = JSON.parse(storage.toJSON(storage.fromJSON(JSON.stringify({ entries: [legacy, tagged] }))));
+  assert.equal(record.entries[0].source, 'unknown');
+  assert.equal(record.entries[0].activity, 'unknown');
+  assert.equal(Object.hasOwn(record.entries[0].values, 'heartRate'), false);
+  assert.equal(record.entries[1].source, 'digitized');
+  assert.equal(record.entries[1].crew, 'A');
+  assert.deepEqual(record.entries[1].quality, { heartRate: 'invalid' });
+});

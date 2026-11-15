@@ -42,6 +42,10 @@ window.CC_STORAGE = (function () {
   function normalizeEntry(e) {
     return {
       day: e.day,
+      crew: typeof e.crew === 'string' ? e.crew : '',
+      source: window.CC_DETECTION.provenance(e.source),
+      activity: e.activity === 'rest' || e.activity === 'exercise' ? e.activity : 'unknown',
+      quality: e.quality && typeof e.quality === 'object' ? e.quality : {},
       values: e.values,
       symptoms: Array.isArray(e.symptoms) ? e.symptoms : [],
       note: typeof e.note === 'string' ? e.note : '',

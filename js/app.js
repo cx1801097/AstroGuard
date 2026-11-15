@@ -11,6 +11,7 @@
   var Ch = window.CC_CHARTS;
   var Body = window.CC_BODYMAP;
   var Store = window.CC_STORAGE;
+  var Detection = window.CC_DETECTION;
 
   /* ---------------- helpers ---------------- */
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -34,6 +35,9 @@
   var state = {
     mission: null,
     draft: {},
+    activity: 'unknown',
+    source: 'measured',
+    quality: {},
     symptoms: [],
     note: '',
     selected: 'cardiovascular',
@@ -57,6 +61,26 @@
   function lastEntry() {
     var sorted = state.mission.entries.slice().sort(function (a, b) { return a.day - b.day; });
     return sorted.length ? sorted[sorted.length - 1] : null;
+  }
+
+  function setDraft(entry, sourceIfEmpty) {
+    state.draft = entry ? cloneObj(entry.values) : {};
+    state.activity = entry ? entry.activity || 'unknown' : 'unknown';
+    state.source = entry ? Detection.provenance(entry.source) : sourceIfEmpty;
+    state.quality = entry ? cloneObj(entry.quality) : {};
+    state.symptoms = entry ? (entry.symptoms || []).slice() : [];
+    state.note = entry ? entry.note || '' : '';
+  }
+
+  function detectionInput() {
+    return {
+      day: state.mission.flightDay,
+      crew: state.mission.crew,
+      values: state.draft,
+      activity: state.activity,
+      source: state.source,
+      quality: state.quality
+    };
   }
 
   function persist() { Store.save(state.mission); }
@@ -129,13 +153,12 @@
 
       num.addEventListener('input', function () {
         var v = parseFloat(num.value);
-        if (isNaN(v)) return;
-        setMetric(m.id, v, 'num');
+        setMetric(m.id, Number.isFinite(v) ? v : null, 'num');
       });
 
       num.addEventListener('blur', function () {
         var v = parseFloat(num.value);
-        if (isNaN(v)) { syncMetricInput(m); return; }
+        if (!Number.isFinite(v) || m.id === 'spo2' || m.id === 'heartRate') return;
         v = clamp(v, m.min, m.max);
         setMetric(m.id, v, 'both');
       });
@@ -157,14 +180,16 @@
   var metricInputSyncs = {};
 
   function setMetric(id, value, source) {
-    state.draft[id] = value;
+    if (value === null) delete state.draft[id];
+    else state.draft[id] = value;
+    delete state.quality[id];
     var m = D.METRIC_BY_ID[id];
     var row = $('.metric[data-metric="' + id + '"]');
     if (row) {
       var range = $('[data-role="range"]', row);
       var num = $('[data-role="num"]', row);
       if (source === 'range') num.value = value;
-      else if (source === 'num') range.value = clamp(value, m.min, m.max);
+      else if (source === 'num') range.value = value === null ? m.def : clamp(value, m.min, m.max);
       else { range.value = value; num.value = value; }
     }
     refresh(false);
@@ -174,11 +199,13 @@
     var row = $('.metric[data-metric="' + m.id + '"]');
     if (!row) return;
     var v = state.draft[m.id];
-    $('[data-role="range"]', row).value = v;
-    $('[data-role="num"]', row).value = v;
+    $('[data-role="range"]', row).value = Number.isFinite(v) ? v : m.def;
+    $('[data-role="num"]', row).value = Number.isFinite(v) ? v : '';
   }
 
   function syncCheckin() {
+    $('#readingSource').value = state.source;
+    $('#readingActivity').value = state.activity;
     D.METRICS.forEach(syncMetricInput);
     $$('#symptomList .symptom-chip').forEach(function (btn) {
       var on = state.symptoms.indexOf(btn.getAttribute('data-symptom')) >= 0;
@@ -319,8 +346,7 @@
     var hasToday = list.some(function (e) { return e.day === state.mission.flightDay; });
     if (!hasToday) {
       list.push({
-        day: state.mission.flightDay,
-        values: cloneObj(state.draft),
+        ...detectionInput(),
         symptoms: state.symptoms.slice(),
         note: state.note,
         live: true
@@ -384,6 +410,14 @@
      ============================================================ */
   function renderPlan() {
     var r = state.result;
+    var detection = Detection.evaluate(detectionInput(), state.mission.entries);
+    var tones = { NORMAL: 'is-go', WARNING: 'is-caution', CRITICAL: 'is-nogo' };
+    $('#healthDetection').innerHTML =
+      '<h4>Vital-sign detection <span class="chip ' + (tones[detection.severity] || '') + '">' +
+      esc(detection.severity) + '</span></h4><p>' + esc(Detection.sourceLabels[detection.source]) +
+      '</p><ul>' + detection.reasons.map(function (reason) {
+        return '<li>' + esc(reason) + '</li>';
+      }).join('') + '</ul>';
     var sorted = D.SYSTEMS.slice().sort(function (a, b) {
       return r.systems[b.id].severity - r.systems[a.id].severity;
     });
@@ -395,11 +429,11 @@
         '<div class="hero-status">' + STATUS_ICON[r.triage] + ' ' + esc(r.triage) + '</div>' +
         '<div class="hero-body">' +
           '<p class="hero-line">' + (r.triage === 'GO'
-            ? 'All monitored systems are within flight limits. Continue the countermeasure schedule.'
+            ? 'The mission readiness score is in the GO band.'
             : r.triage === 'CAUTION'
               ? 'One or more systems are drifting. Act now — most flight issues are reversible if caught at this stage.'
               : 'A finding requires immediate crew action and flight-surgeon notification.') + '</p>' +
-          '<p class="hero-meta">Readiness <strong>' + r.readiness + '/100</strong> \u00b7 ' +
+          '<p class="hero-meta">Mission readiness <strong>' + r.readiness + '/100</strong> \u00b7 ' +
             attention.length + ' system' + (attention.length === 1 ? '' : 's') + ' needing attention \u00b7 sleep debt ' +
             r.sleepDebt.toFixed(1) + ' h \u00b7 check-in gap ' + r.daysSinceCheckIn + ' d</p>' +
         '</div>' +
@@ -453,11 +487,11 @@
         '<td class="num">FD ' + e.day + '</td>' +
         '<td><span class="chip ' + STATUS_CLASS[r.triage] + '">' + esc(r.triage) + '</span></td>' +
         '<td class="num">' + r.readiness + '</td>' +
-        '<td class="num">' + (v.systolic != null ? v.systolic : '\u2014') + '/' + (v.diastolic != null ? v.diastolic : '\u2014') + '</td>' +
-        '<td class="num">' + (v.heartRate != null ? v.heartRate : '\u2014') + '</td>' +
+        '<td class="num">' + esc(v.systolic != null ? v.systolic : '\u2014') + '/' + esc(v.diastolic != null ? v.diastolic : '\u2014') + '</td>' +
+        '<td class="num">' + esc(v.heartRate != null ? v.heartRate : '\u2014') + '</td>' +
         '<td class="num">' + (v.temperature != null ? Number(v.temperature).toFixed(1) : '\u2014') + '</td>' +
         '<td class="num">' + (v.sleepHours != null ? Number(v.sleepHours).toFixed(1) : '\u2014') + '</td>' +
-        '<td class="num">' + (v.spo2 != null ? v.spo2 : '\u2014') + '</td>' +
+        '<td class="num">' + esc(v.spo2 != null ? v.spo2 : '\u2014') + '</td>' +
         '<td class="row-actions">' +
           '<button type="button" class="mini-btn" data-act="load" data-day="' + e.day + '">Load</button>' +
           '<button type="button" class="mini-btn danger" data-act="del" data-day="' + e.day + '" aria-label="Delete flight day ' + e.day + '">\u00d7</button>' +
@@ -470,7 +504,10 @@
      REFRESH
      ============================================================ */
   function refresh() {
-    var ctx = { flightDay: state.mission.flightDay, entries: state.mission.entries };
+    var ctx = {
+      flightDay: state.mission.flightDay, entries: state.mission.entries,
+      activity: state.activity, quality: state.quality
+    };
     state.result = S.evaluate(state.draft, ctx, state.symptoms);
 
     renderHeader();
@@ -486,7 +523,7 @@
     D.METRICS.forEach(function (m) {
       var row = $('.metric[data-metric="' + m.id + '"]');
       if (!row) return;
-      var band = S.bandFor(m, state.draft[m.id]);
+      var band = S.bandFor(m, S.readinessReading(detectionInput(), m.id));
       var chip = $('[data-role="band"]', row);
       chip.textContent = band.label;
       chip.className = 'band-chip ' + levelClass(band.level);
@@ -504,7 +541,9 @@
     }
     var same = JSON.stringify(saved.values) === JSON.stringify(sanitizeDraft());
     var sameSym = JSON.stringify(saved.symptoms) === JSON.stringify(state.symptoms.slice().sort());
-    if (same && sameSym) {
+    if (same && sameSym && saved.source === state.source && saved.activity === state.activity &&
+        saved.crew === state.mission.crew && saved.note === state.note &&
+        JSON.stringify(saved.quality) === JSON.stringify(state.quality)) {
       node.textContent = 'Saved for flight day ' + state.mission.flightDay + '.';
       node.className = 'save-state is-saved';
     } else {
@@ -517,7 +556,7 @@
     var out = {};
     D.METRICS.forEach(function (m) {
       var v = state.draft[m.id];
-      out[m.id] = typeof v === 'number' ? v : m.def;
+      if (v !== undefined) out[m.id] = v;
     });
     return out;
   }
@@ -528,13 +567,12 @@
   function saveEntry() {
     var day = state.mission.flightDay;
     var values = sanitizeDraft();
-    var entry = {
-      day: day,
+    var entry = Object.assign(detectionInput(), {
       values: values,
       symptoms: state.symptoms.slice().sort(),
       note: state.note || '',
       savedAt: new Date().toISOString()
-    };
+    });
     var replaced = false;
     state.mission.entries = state.mission.entries.map(function (e) {
       if (e.day === day) { replaced = true; return entry; }
@@ -553,7 +591,9 @@
   function nextDay() {
     state.mission.flightDay += 1;
     persist();
-    $('#dayLabel').textContent = 'FD ' + state.mission.flightDay;
+    var entry = entryForDay(state.mission.flightDay);
+    setDraft(entry && (!entry.crew || entry.crew === state.mission.crew) ? entry : null, state.source);
+    syncCheckin();
     refresh();
     renderLog();
     toast('Advancing to flight day ' + state.mission.flightDay + '.');
@@ -562,6 +602,9 @@
   function applyScenario(key) {
     var sc = D.SCENARIOS[key];
     if (!sc) return;
+    setDraft(null, 'simulated');
+    state.draft = defaultValues();
+    state.activity = 'rest';
     D.METRICS.forEach(function (m) {
       if (typeof sc.values[m.id] === 'number') state.draft[m.id] = sc.values[m.id];
     });
@@ -575,9 +618,8 @@
     var e = entryForDay(day);
     if (!e) return;
     state.mission.flightDay = day;
-    state.draft = Object.assign(defaultValues(), e.values);
-    state.symptoms = (e.symptoms || []).slice();
-    state.note = e.note || '';
+    if (e.crew) state.mission.crew = e.crew;
+    setDraft(e);
     persist();
     syncCheckin();
     refresh();
@@ -595,10 +637,7 @@
 
   function loadDemo() {
     state.mission = window.CC_SAMPLE.build();
-    var last = lastEntry();
-    state.draft = last ? Object.assign(defaultValues(), last.values) : defaultValues();
-    state.symptoms = last ? (last.symptoms || []).slice() : [];
-    state.note = '';
+    setDraft(entryForDay(state.mission.flightDay), 'simulated');
     persist();
     syncCheckin();
     refresh();
@@ -611,9 +650,7 @@
     Store.clear();
     state.mission = Store.emptyMission();
     state.mission.flightDay = 1;
-    state.draft = defaultValues();
-    state.symptoms = [];
-    state.note = '';
+    setDraft(null, 'measured');
     persist();
     syncCheckin();
     refresh();
@@ -628,9 +665,9 @@
         var mission = Store.fromJSON(String(reader.result));
         state.mission = mission;
         var last = lastEntry();
-        state.draft = last ? Object.assign(defaultValues(), last.values) : defaultValues();
-        state.symptoms = last ? (last.symptoms || []).slice() : [];
-        state.note = '';
+        var today = entryForDay(mission.flightDay);
+        setDraft(today && (!today.crew || today.crew === mission.crew) ? today : null,
+          last ? Detection.provenance(last.source) : 'measured');
         persist();
         syncCheckin();
         refresh();
@@ -720,9 +757,23 @@
       updateSaveState();
     });
 
-    $('#crewName').addEventListener('input', function (ev) {
-      state.mission.crew = ev.target.value;
+    $('#readingSource').addEventListener('change', function (ev) {
+      setDraft(null, ev.target.value);
+      syncCheckin();
+      refresh();
+    });
+
+    $('#readingActivity').addEventListener('change', function (ev) {
+      state.activity = ev.target.value;
+      refresh();
+    });
+
+    $('#crewName').addEventListener('change', function (ev) {
+      state.mission.crew = ev.target.value.trim();
+      setDraft(null, state.source);
+      syncCheckin();
       persist();
+      refresh();
     });
 
     /* log table */
@@ -756,11 +807,8 @@
 
     var today = entryForDay(state.mission.flightDay);
     var last = lastEntry();
-    var source = today || last;
-
-    state.draft = source ? Object.assign(defaultValues(), source.values) : defaultValues();
-    state.symptoms = source ? (source.symptoms || []).slice() : [];
-    state.note = source && today ? (today.note || '') : '';
+    setDraft(today && (!today.crew || today.crew === state.mission.crew) ? today : null,
+      last ? Detection.provenance(last.source) : 'measured');
 
     buildCheckin();
     bindEvents();

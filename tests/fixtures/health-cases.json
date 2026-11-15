@@ -1,0 +1,62 @@
+{
+  "normal": {
+    "description": "Stable resting check-in with adequate available data",
+    "activity": "rest",
+    "values": {
+      "spo2": 98,
+      "heartRate": 72
+    },
+    "expected": "NORMAL"
+  },
+  "exercise": {
+    "description": "Recently exercising with a higher pulse and preserved oxygen",
+    "activity": "exercise",
+    "values": {
+      "spo2": 98,
+      "heartRate": 145
+    },
+    "expected": "NORMAL"
+  },
+  "hypoxemia": {
+    "description": "Single usable low oxygen observation with a missing pulse",
+    "activity": "rest",
+    "values": {
+      "spo2": 86
+    },
+    "expected": "CRITICAL"
+  },
+  "sensor failure": {
+    "description": "An implausible saturation and a pulse manually flagged by the device",
+    "activity": "rest",
+    "values": {
+      "spo2": 255,
+      "heartRate": 35
+    },
+    "quality": {
+      "heartRate": "invalid"
+    },
+    "expected": "UNKNOWN"
+  },
+  "combined deterioration": {
+    "description": "Two successive resting days with low oxygen and elevated pulse; neither value alone is critical",
+    "activity": "rest",
+    "values": {
+      "spo2": 91,
+      "heartRate": 112
+    },
+    "prior": {
+      "spo2": 92,
+      "heartRate": 107
+    },
+    "expected": "CRITICAL"
+  },
+  "offline": {
+    "description": "Valid resting check-in processed with network and storage access disabled",
+    "activity": "rest",
+    "values": {
+      "spo2": 97,
+      "heartRate": 74
+    },
+    "expected": "NORMAL"
+  }
+}

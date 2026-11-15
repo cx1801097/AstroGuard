@@ -38,7 +38,7 @@ start index.html
 node server.js        # any static server works
 ```
 
-No install, no dependencies. The console boots with a 30-day demo mission so there is always something to look at; press **Reset** to start a real crew record.
+No install, no dependencies. The console boots with a simulated 30-day mission. Press **Reset** to start a fresh measured record. For tests, run `node --test` from the repository root with Node.js 20 or later.
 
 Deployment is GitHub Pages from `main` → `/` (root), so any push to `main` redeploys the live demo automatically.
 
@@ -80,7 +80,7 @@ Some things cannot be continuously sensed — **SANS / VIIP ocular changes** for
 
 ## How the scoring engine works
 
-Transparent, three steps, no machine learning:
+The mission readiness score uses the existing rule-based calculation:
 
 ```
 metric value
@@ -104,11 +104,36 @@ Thresholds live in [`js/data.js`](js/data.js) so a flight surgeon can review and
 
 - `js/data.js` — indicators, bands, systems, countermeasures, demo scenarios
 - `js/scoring.js` — banding → severity → readiness → triage, plus trend extraction
+- `js/detection.js` — offline vital-sign detection, personal baselines and data quality
 - `js/body-map.js` — the clickable figure
 - `js/charts.js` — hand-rolled SVG sparklines and the readiness chart
 - `js/storage.js` — localStorage mission log, JSON export/import
 - `js/app.js` — controller and rendering
 - `data/sample-mission.js` — the 30-day demo dataset
+
+---
+
+## Vital-sign detection
+
+Enter SpO₂ (%) and heart rate (bpm), then select the source and the activity **when the readings were taken**. Open **Action plan** to see status, provenance and the readings or missing data behind it. Save a check-in to make it available as history. Blank readings stay missing. Advancing to a new day starts a blank check-in unless that day already has a saved record. Changing the source or crew clears the draft so earlier readings keep their provenance and identity.
+
+| Status | Detection criteria |
+|---|---|
+| **CRITICAL** | One critical oxygen or resting-pulse threshold, or persistent warning-level oxygen and resting-pulse thresholds together. |
+| **WARNING** | One warning-level threshold or a persistent personal-baseline deviation. |
+| **UNKNOWN** | Missing, flagged or invalid vital readings, or unspecified activity, with no usable finding that warrants a warning or critical alert. |
+| **NORMAL** | Both vitals usable, activity known, and the applicable checks produce no alert. Baseline warm-up and an isolated deviation can still appear in the explanation. |
+
+- **Oxygen:** SpO₂ ≤92% warns and ≤88% is critical, including during exercise. See [MedlinePlus pulse oximetry](https://www.medlineplus.gov/lab-tests/pulse-oximetry/).
+- **Resting pulse:** <50 or >100 bpm warns and ≤40 or ≥131 bpm is critical. The prototype uses the NEWS2 pulse extremes and the AHA upper resting reference. Its 50 bpm warning boundary is a design choice to allow for lower resting pulse among active adults. Exercise skips resting-pulse and baseline checks. See [RCP NEWS2 observation chart](https://www.rcp.ac.uk/media/eczf5mvm/news2-chart-3_news-observation-chart_2022_0_0.pdf) and [AHA resting heart rate](https://www.heart.org/en/health-topics/high-blood-pressure/the-facts-about-high-blood-pressure/all-about-heart-rate-pulse).
+- **Personal baseline:** Uses the median and scaled median absolute deviation (MAD) of usable, resting, threshold-free samples from the same crew member and source in the prior 30 flight days. It needs seven samples per vital and uses scale floors of 1 percentage point and 3 bpm. A downward oxygen deviation or either-direction pulse deviation of at least 3.5 scaled units is flagged. The same current reference is used to check persistence in the preceding raw observations.
+- **Persistence and fusion:** Two adjacent flight days are required for a baseline alert or combined safety escalation. A missed day, ambiguous duplicate day or unusable reading breaks the streak. A standalone absolute warning or critical reading is immediate. The prototype settings and references are in `js/detection.js`.
+
+The engine executes entirely in the browser, including when run from `index.html`. The optional local server serves the same assets. There is no model download, training corpus, API key, or telemetry. Mission readiness still covers the original body systems and symptoms. Vital-sign status covers only oxygen and pulse.
+
+The 30-day demo, preset conditions and labeled test fixtures are simulated. **Measured** means directly recorded observations, **digitized** means estimates transcribed from a published visual, and **simulated** means generated observations. These sources are never pooled for personal baselines. Older untagged records remain unspecified and cannot supply a baseline. [NASA's Inspiration4 archive](https://osdr.nasa.gov/bio/repo/data/missions/SpaceX%20Inspiration4) is a historical demonstration reference. The repository includes no I4 telemetry or digitized I4 measurements, and the tests do not validate performance on I4.
+
+The thresholds are terrestrial references used in an educational prototype. Flight-specific limits, altitude, sensor accuracy and individual variation require review by qualified staff. Pulse oximetry may be affected by motion, perfusion, skin pigmentation and other factors. Daily manual check-ins cannot detect events between readings, and rolling baselines can adapt to gradual drift. The prototype provides observations for human review and does not diagnose or recommend treatment. The six labeled fixtures and regression tests exercise software behavior. Clinical accuracy and operational performance have not been measured. See [FDA pulse oximeter limitations](https://www.fda.gov/consumers/consumer-updates/pulse-oximeter-basics).
 
 ---
 
@@ -125,6 +150,10 @@ The mission record is plain JSON. Drop a file in `data/` (or use **Import**) wit
   "entries": [
     {
       "day": 40,
+      "crew": "CDR-1",
+      "source": "measured",
+      "activity": "rest",
+      "quality": {},
       "values": {
         "systolic": 118, "diastolic": 74, "heartRate": 68,
         "glucose": 92, "temperature": 36.6, "sleepHours": 7.5,
@@ -138,7 +167,7 @@ The mission record is plain JSON. Drop a file in `data/` (or use **Import**) wit
 }
 ```
 
-Rules: `values` keys must match the metric ids in `js/data.js`; `day` is the flight day; unknown keys are ignored; missing metrics fall back to nominal defaults. **Export** always produces a file in exactly this shape, so a round-trip through the console is lossless.
+Use a single crew record per mission file and a stable `crew` identifier on each check-in. `day` is the integer flight day. The `values` keys correspond to metric IDs in `js/data.js`. Omit missing values or use `null`. Set `quality.spo2` or `quality.heartRate` to `"invalid"` for a flagged reading. Import and export preserve these fields. Keep private mission exports outside the repository.
 
 To swap the demo dataset, edit `data/sample-mission.js` or import a JSON file at runtime — no code changes needed.
 

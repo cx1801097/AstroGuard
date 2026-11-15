@@ -51,6 +51,9 @@ window.CC_SAMPLE = (function () {
 
       entries.push({
         day: day,
+        crew: 'CDR-1',
+        source: 'simulated',
+        activity: 'rest',
         values: values,
         symptoms: symptoms,
         note: stress > 0.7 ? 'Reported poor sleep and headache after EVA.' : '',
@@ -62,7 +65,7 @@ window.CC_SAMPLE = (function () {
       version: 1,
       name: 'ARTEMIS VII',
       crew: 'CDR-1',
-      flightDay: START_DAY + DAYS,
+      flightDay: START_DAY + DAYS - 1,
       entries: entries
     };
   }

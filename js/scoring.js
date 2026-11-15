@@ -23,13 +23,19 @@ window.CC_SCORING = (function () {
 
   /** Nearest band for a metric value. */
   function bandFor(metric, value) {
-    if (value === null || value === undefined || isNaN(value)) {
+    if (!Number.isFinite(value)) {
       return { level: 1, label: 'No reading' };
     }
     for (var i = 0; i < metric.bands.length; i++) {
       if (value <= metric.bands[i].hi) return metric.bands[i];
     }
     return metric.bands[metric.bands.length - 1];
+  }
+
+  function readinessReading(entry, key) {
+    if (key === 'heartRate' && entry.activity === 'exercise') return undefined;
+    if (key === 'heartRate' || key === 'spo2') return window.CC_DETECTION.reading(entry, key).value;
+    return entry.values[key];
   }
 
   function levelLabel(level) { return D.LEVELS[level] || 'UNKNOWN'; }
@@ -81,12 +87,13 @@ window.CC_SCORING = (function () {
     symptoms = symptoms || [];
     var entries = ctx.entries || [];
     var flightDay = typeof ctx.flightDay === 'number' ? ctx.flightDay : 0;
+    var checkIn = { values: values, activity: ctx.activity, quality: ctx.quality };
 
     /* ---- 1. Metric bands ---- */
     var results = {};
     var worstBySystem = {};
     D.METRICS.forEach(function (m) {
-      var v = values[m.id];
+      var v = readinessReading(checkIn, m.id);
       var band = bandFor(m, v);
       var sev = SEV[band.level];
       results[m.id] = {
@@ -268,7 +275,9 @@ window.CC_SCORING = (function () {
     return sorted.map(function (e) {
       return {
         entry: e,
-        result: evaluate(e.values, { flightDay: e.day, entries: sorted }, e.symptoms || [])
+        result: evaluate(e.values, {
+          flightDay: e.day, entries: sorted, activity: e.activity, quality: e.quality
+        }, e.symptoms || [])
       };
     });
   }
@@ -286,6 +295,7 @@ window.CC_SCORING = (function () {
   }
 
   return {
+    readinessReading: readinessReading,
     SEV: SEV,
     bandFor: bandFor,
     evaluate: evaluate,

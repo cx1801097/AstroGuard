@@ -1,0 +1,173 @@
+/* Shared by the static dashboard and Node tests. Evaluates one daily check-in. */
+(function () {
+  'use strict';
+
+  const defaults = Object.freeze({
+    // MedlinePlus pulse oximetry: https://www.medlineplus.gov/lab-tests/pulse-oximetry/
+    oxygenWarning: 92,
+    oxygenCritical: 88,
+    // RCP NEWS2 Chart 3 (pulse extremes) and AHA resting pulse reference.
+    // https://www.rcp.ac.uk/media/eczf5mvm/news2-chart-3_news-observation-chart_2022_0_0.pdf
+    // https://www.heart.org/en/health-topics/high-blood-pressure/the-facts-about-high-blood-pressure/all-about-heart-rate-pulse
+    pulseLow: 50,
+    pulseHigh: 100,
+    pulseCriticalLow: 40,
+    pulseCriticalHigh: 131,
+    // Prototype settings for daily check-ins.
+    persistenceDays: 2,
+    baselineDays: 30,
+    baselineMinimum: 7,
+    anomalyScore: 3.5,
+    oxygenScaleFloor: 1,
+    pulseScaleFloor: 3
+  });
+
+  const sourceLabels = Object.freeze({
+    measured: 'Measured',
+    digitized: 'Digitized · historical replay',
+    simulated: 'Simulated · demonstration',
+    unknown: 'Unspecified provenance'
+  });
+  const metrics = {
+    spo2: { label: 'SpO₂', unit: '%', minimum: 1, maximum: 100 },
+    heartRate: { label: 'Heart rate', unit: ' bpm', minimum: 1, maximum: 300 }
+  };
+
+  function provenance(value) {
+    return Object.hasOwn(sourceLabels, value) ? value : 'unknown';
+  }
+
+  function reading(entry, key) {
+    const value = entry.values?.[key];
+    const metric = metrics[key];
+    if (entry.quality?.[key] === 'invalid') return { state: 'sensor flagged' };
+    if (value === null || value === undefined) return { state: 'missing' };
+    if (!Number.isFinite(value) || value < metric.minimum || value > metric.maximum) {
+      return { state: 'invalid' };
+    }
+    return { state: 'usable', value };
+  }
+
+  function median(values) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return (sorted[middle] + sorted[Math.ceil(sorted.length / 2) - 1]) / 2;
+  }
+
+  function band(key, value, activity, config) {
+    if (!Number.isFinite(value)) return null;
+    if (key === 'spo2') {
+      if (value <= config.oxygenCritical) return { severity: 'CRITICAL', limit: '≤ ' + config.oxygenCritical + '%' };
+      if (value <= config.oxygenWarning) return { severity: 'WARNING', limit: '≤ ' + config.oxygenWarning + '%' };
+    } else if (activity === 'rest') {
+      if (value <= config.pulseCriticalLow || value >= config.pulseCriticalHigh) {
+        return { severity: 'CRITICAL', limit: '≤ ' + config.pulseCriticalLow + ' or ≥ ' + config.pulseCriticalHigh + ' bpm' };
+      }
+      if (value < config.pulseLow || value > config.pulseHigh) {
+        return { severity: 'WARNING', limit: '< ' + config.pulseLow + ' or > ' + config.pulseHigh + ' bpm' };
+      }
+    }
+    return null;
+  }
+
+  function personalBaseline(key, prior, config) {
+    const samples = prior.filter(entry => entry.activity === 'rest')
+      .map(entry => reading(entry, key).value)
+      .filter(value => Number.isFinite(value) && !band(key, value, 'rest', config));
+    if (samples.length < config.baselineMinimum) return { count: samples.length };
+    const center = median(samples);
+    const mad = median(samples.map(value => Math.abs(value - center)));
+    const floor = key === 'spo2' ? config.oxygenScaleFloor : config.pulseScaleFloor;
+    return { count: samples.length, median: center, scale: Math.max(1.4826 * mad, floor) };
+  }
+
+  function anomaly(key, value, baseline, config) {
+    if (!Number.isFinite(value) || baseline.scale === undefined) return false;
+    const delta = value - baseline.median;
+    return (key === 'spo2' ? -delta : Math.abs(delta)) / baseline.scale >= config.anomalyScore;
+  }
+
+  function evaluate(current, history = [], overrides = {}) {
+    const config = { ...defaults, ...overrides };
+    const source = provenance(current.source);
+    const activity = ['rest', 'exercise'].includes(current.activity) ? current.activity : 'unknown';
+    const prior = new Map();
+    const duplicateDays = new Set();
+    for (const entry of history) {
+      if (!Number.isInteger(current.day) || !Number.isInteger(entry.day) || entry.day >= current.day ||
+          entry.day < current.day - Math.max(config.baselineDays, config.persistenceDays - 1) ||
+          source === 'unknown' || provenance(entry.source) !== source ||
+          !current.crew || entry.crew !== current.crew) continue;
+      if (prior.has(entry.day)) duplicateDays.add(entry.day);
+      prior.set(entry.day, entry);
+    }
+    for (const day of duplicateDays) prior.delete(day);
+
+    function consecutive(key, condition) {
+      let count = 1;
+      for (let day = current.day - 1; count < config.persistenceDays && prior.has(day); day--) {
+        const entry = prior.get(day);
+        if (!condition(reading(entry, key).value, entry.activity)) break;
+        count++;
+      }
+      return count;
+    }
+
+    const quality = {};
+    const baselines = {};
+    const samples = [...prior.values()].filter(entry => entry.day >= current.day - config.baselineDays);
+    const reasons = [];
+    const persistent = new Set();
+    let critical = false;
+    let warning = false;
+    let incomplete = activity === 'unknown' || !Number.isInteger(current.day);
+    if (activity === 'unknown') reasons.push('Activity is unspecified. Resting heart-rate checks require a resting reading.');
+    if (activity === 'exercise') reasons.push('Exercise context skips resting heart-rate and personal baseline checks.');
+
+    for (const [key, metric] of Object.entries(metrics)) {
+      const sample = reading(current, key);
+      quality[key] = sample.state;
+      if (sample.state !== 'usable') {
+        incomplete = true;
+        reasons.push(metric.label + ' is ' + sample.state + '.');
+        continue;
+      }
+      const display = metric.label + ' ' + sample.value + metric.unit;
+      const hit = band(key, sample.value, activity, config);
+      if (hit) {
+        const count = consecutive(key, (value, context) => Boolean(band(key, value, context, config)));
+        if (count >= config.persistenceDays) persistent.add(key);
+        critical ||= hit.severity === 'CRITICAL';
+        warning = true;
+        reasons.push(display + ' meets the ' + hit.severity.toLowerCase() + ' threshold (' +
+          hit.limit + '). Consecutive flagged days: ' + count + '.');
+      }
+
+      if (activity !== 'rest') continue;
+      const baseline = personalBaseline(key, samples, config);
+      baselines[key] = baseline;
+      if (baseline.median === undefined) {
+        reasons.push(metric.label + ' baseline is warming up (' + baseline.count + '/' + config.baselineMinimum + ' resting check-ins).');
+      } else if (anomaly(key, sample.value, baseline, config)) {
+        const count = consecutive(key, (value, context) => context === 'rest' && anomaly(key, value, baseline, config));
+        warning ||= count >= config.persistenceDays;
+        reasons.push(display + ' departs from the resting median (' + baseline.median + metric.unit +
+          '). Consecutive flagged days: ' + count + '.');
+      }
+    }
+
+    // Only sustained absolute thresholds on two distinct signals can fuse to critical.
+    if (persistent.has('spo2') && persistent.has('heartRate')) {
+      critical = true;
+      reasons.push('Low oxygen and out-of-range resting heart rate both crossed safety thresholds on consecutive days.');
+    }
+
+    const severity = critical ? 'CRITICAL' : warning ? 'WARNING' : incomplete ? 'UNKNOWN' : 'NORMAL';
+    if (severity === 'NORMAL') reasons.unshift('No alert threshold was reached for this activity.');
+    return { severity, source, activity, quality, baselines, reasons };
+  }
+
+  const engine = { evaluate, defaults, sourceLabels, provenance, reading };
+  if (typeof module !== 'undefined' && module.exports) module.exports = engine;
+  else window.CC_DETECTION = engine;
+})();
