@@ -144,7 +144,7 @@ The detector executes entirely in the browser, including when run from `index.ht
 
 ### Cloud AI mission demo review
 
-AI controls are paused in this version. The health detector and Crew Suggestion panel still work. The setup below documents the optional integration for future use.
+The public demo uses Amazon Nova Micro through AWS Lambda for simulated check-ins. Open **Health Monitoring System → Action plan → Analyze mission with AI**. The demo allows up to 20 Bedrock requests across all visitors per UTC day. Health detection and Crew Suggestion work offline. See [the Lambda deployment guide](deployment/aws/README.md).
 
 **Amazon Bedrock with IAM (Sydney).** On Windows, double-click `Start-Crew-Check-Bedrock-IAM.cmd`. The launcher installs the AWS SDK on first use and opens `http://localhost:8092/`. The SDK uses its [default credential provider chain](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html). On your computer, sign in to your AWS profile first. On AWS, attach an execution role to the service running the server. That identity needs `bedrock:InvokeModel` for `arn:aws:bedrock:ap-southeast-2::foundation-model/amazon.nova-micro-v1:0`. For manual startup, run `npm ci`, set `CREW_CHECK_BEDROCK_IAM=1` and run `node server.js 8092`. The IAM mode defaults to `ap-southeast-2` and honors `AWS_REGION`. To choose AWS credentials from a named profile, set `AWS_PROFILE` before launching.
 
