@@ -18,6 +18,7 @@
       <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
       <button type="button" class="card portal-option" data-open="missionConsole"><strong>New mission</strong><span>Open the crew-operated mission console.</span></button>
       <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Connect live over Bluetooth or import readings from your watch app.</span></button>
+      <button type="button" class="card portal-option portal-option-wide" data-open="offlineBuild"><strong>Offline build</strong><span>Open the standalone build — no server, no build step, no network calls.</span></button>
     </div>
   </section>
   <section id="missionConsoleView" class="portal-view" hidden>
@@ -30,6 +31,15 @@
     </nav>
     <h1>New mission</h1>
     <iframe id="missionConsoleFrame" title="CREW CHECK mission console" data-src="new-mission/index.html"></iframe>
+  </section>
+  <section id="offlineBuildView" class="portal-view" hidden>
+    <nav class="portal-actions" aria-label="Offline build navigation">
+      <button type="button" class="btn" data-open="home">Home</button>
+      <a class="btn" href="offline-i4/index.html" target="_blank" rel="noopener">Open in a new tab</a>
+    </nav>
+    <h1>Offline build</h1>
+    <p>The standalone CREW CHECK build, published under <code>offline-i4/</code>. It opens straight from the filesystem with no server, no build step and no network calls — the same console, packaged to work on a laptop in a habitat.</p>
+    <iframe id="offlineBuildFrame" title="CREW CHECK offline build" data-src="offline-i4/index.html"></iframe>
   </section>
   <section id="missionView" class="portal-view" hidden>
     <button type="button" class="btn" data-open="home">Home</button>
