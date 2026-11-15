@@ -49,11 +49,20 @@
         byId(id).hidden = next !== 'dashboard';
       }
       byId('consoleMode').textContent = { simulator: 'Health Monitoring System', replay: 'I4 mission playback', dashboard: 'Mission console' }[next] || '';
+      /* Live NASA context describes today, so it stays out of the 2021 replay. */
+      const liveTab = byId('nasaLiveTab');
+      const liveStat = byId('groundEnvStat');
+      if (liveTab) liveTab.hidden = next === 'replay';
+      if (liveStat) liveStat.hidden = next === 'replay';
+      if (next === 'replay' && liveTab && liveTab.classList.contains('is-active')) {
+        document.querySelector('[data-tab="body"]').click();
+      }
       if (next === 'simulator') Console.open('simulator', Store.load() || window.CC_SAMPLE.build(), '');
       if (next === 'replay') {
         showReplay();
         window.CC_OPEN_I4_RECORDS?.();
       }
+      if (next === 'simulator' || next === 'dashboard') window.CC_OPEN_NASA_LIVE?.();
       if (next === 'mission') showSavedMissions();
       if (next === 'missionConsole') {
         const frame = byId('missionConsoleFrame');
