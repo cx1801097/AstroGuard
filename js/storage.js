@@ -30,6 +30,7 @@ window.CC_STORAGE = (function () {
     m.name = typeof raw.name === 'string' ? raw.name : m.name;
     m.crew = typeof raw.crew === 'string' ? raw.crew : m.crew;
     m.flightDay = typeof raw.flightDay === 'number' ? raw.flightDay : m.flightDay;
+    if (raw.details && typeof raw.details === 'object' && !Array.isArray(raw.details)) m.details = raw.details;
     m.entries = Array.isArray(raw.entries) ? raw.entries.filter(validEntry).map(normalizeEntry) : [];
     m.version = VERSION;
     return m;
@@ -49,20 +50,37 @@ window.CC_STORAGE = (function () {
       values: e.values,
       symptoms: Array.isArray(e.symptoms) ? e.symptoms : [],
       note: typeof e.note === 'string' ? e.note : '',
-      savedAt: e.savedAt || null
+      savedAt: e.savedAt || null,
+      wearable: e.wearable && typeof e.wearable === 'object' ? e.wearable : null
     };
   }
 
-  function load() {
+  function keyFor(scope) { return scope ? KEY + '.' + scope : KEY; }
+
+  function listMissions() {
+    try {
+      var prefix = keyFor('mission-');
+      return Object.keys(window.localStorage).filter(function (key) {
+        return key.startsWith(prefix);
+      }).map(function (key) {
+        var scope = key.slice(KEY.length + 1);
+        return { scope: scope, mission: load(scope) };
+      }).filter(function (entry) { return entry.mission; });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function load(scope) {
     var text = null;
-    try { text = window.localStorage.getItem(KEY); } catch (e) { /* private mode / file:// */ }
+    try { text = window.localStorage.getItem(keyFor(scope)); } catch (e) { /* private mode / file:// */ }
     if (!text) return null;
     return migrate(safeParse(text));
   }
 
-  function save(mission) {
+  function save(mission, scope) {
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(mission));
+      window.localStorage.setItem(keyFor(scope), JSON.stringify(mission));
       return true;
     } catch (e) {
       return false;
@@ -101,6 +119,7 @@ window.CC_STORAGE = (function () {
   return {
     KEY: KEY,
     load: load,
+    listMissions: listMissions,
     save: save,
     clear: clear,
     emptyMission: emptyMission,

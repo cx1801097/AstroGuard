@@ -369,9 +369,35 @@ input[type="range"]::-moz-range-thumb {
 .panes { padding: 16px; flex: 1; }
 .pane { display: none; }
 .pane.is-active { display: block; animation: fade 0.25s ease; }
-.i4-replay > .card { margin-bottom: 12px; }
-.i4-replay h3 { font-size: 14px; margin-bottom: 4px; }
-.i4-replay a { color: var(--cyan); }
+[hidden] { display: none !important; }
+.portal { max-width: 980px; margin: 0 auto; padding: clamp(24px, 7vw, 88px) 20px 32px; }
+.portal-view > h1 { font-size: clamp(30px, 6vw, 64px); letter-spacing: -0.04em; margin: 14px 0 6px; }
+.portal-view > p { color: var(--text-dim); max-width: 55ch; }
+.portal-options, .mission-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.portal-options { margin-top: 26px; }
+.portal-option { display: grid; gap: 8px; padding: 20px; color: var(--text); text-align: left; cursor: pointer; }
+.portal-option strong { font-size: 18px; }
+.portal-option span { color: var(--text-dim); }
+.portal-option:hover, .portal-option:focus-visible { border-color: var(--cyan); }
+.portal-view > .card { margin-top: 14px; }
+.portal-actions, .console-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.portal-actions { margin: 12px 0; }
+.console-navigation { padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+.replay-banner { margin: 14px 16px; }
+.replay-banner .field { margin: 10px 0; max-width: 360px; }
+.replay-banner a { color: var(--cyan); }
+#missionProfileFields { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin-top: 10px; }
+#missionProfileFields dt { color: var(--muted); }
+#missionProfileFields dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.replay-no-data.replay-mode .panes, .replay-no-data.replay-mode .readiness,
+.replay-mode .workspace-tools, .replay-mode .checkin-actions, .replay-mode .row-actions,
+.replay-mode #scenarioRow, .replay-mode #planList, .replay-mode #planSummary,
+.mission-mode #demoBtn, .mission-mode #resetBtn, .mission-mode #importBtn, .mission-mode #scenarioRow,
+.mission-mode .field:has(#readingSource) { display: none; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+@media (max-width: 580px) {
+  .portal-options, .mission-form-grid { grid-template-columns: 1fr; }
+}
 
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 

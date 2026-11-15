@@ -53,7 +53,15 @@ Deployment is GitHub Pages from `main` → `/` (root), so any push to `main` red
 | **Trends** | Mission-wide readiness chart with GO/CAUTION/NO-GO zones, plus a sparkline per indicator with its normal range shaded. |
 | **Action plan** | The triage answer: overall status, findings outside limits, and ranked countermeasures per system. |
 | **Mission log** | Every saved check-in, with load / delete. |
-| **I4 mission replay** | Browse the documented Inspiration4 launch, orbital flight, and splashdown. Health readings are pending the supplied dataset. |
+| **I4 mission playback** | Browse Inspiration4 by date. The read-only console will show supplied vital signs and run the same detector for days with readings. |
+
+### Home screen and wearable setup
+
+- **Simulator** opens the existing demo dashboard and uses its original local log. **New mission** creates a separate local record with spacecraft, launch and return dates, crew ID, mission status and phase, and optional operational details. Use **Resume a saved mission** to reopen it.
+- **I4 mission playback** is historical. `data/i4-replay.js` starts empty. Add only approved public records using the mission entry schema, explicitly set measured or digitized provenance, and use days 1–4 for September 15–18 (Eastern time). Earlier days can supply history, and future days are hidden when replaying a prior date. No readings or health events are inferred from the timeline.
+- **Connect wearable device** supports a nearby Bluetooth Low Energy sensor that advertises the standard Heart Rate Service. Open the app via HTTPS or `http://localhost:8080` in a browser with Web Bluetooth support, enable heart-rate broadcasting, and use **Choose device**. The browser handles device permission. On a lost connection, recorded samples remain available and **Reconnect** retries the selected sensor. See [Chrome's Web Bluetooth guide](https://developer.chrome.com/docs/capabilities/bluetooth).
+- **Start recording** saves timestamped heart-rate samples on the device, up to one every five seconds and 5,000 total. **Export readings** downloads JSON. In a new mission, **Use latest heart rate** copies a fresh sample into the current check-in. Set the reading activity and save the check-in to keep it with the mission. Continuous recording and saved check-ins are separate.
+- `js/wearable.js` defines the hardware adapter contract. A future adapter can implement `pair`, `reconnect`, and `disconnect` and emit status and timestamped samples with `metric`, `value`, `unit`, `timestamp`, and `provider`. Vendor-specific devices need their own supported adapter. Current Bluetooth coverage is heart rate. Physical-device compatibility and flight readiness require separate validation.
 
 **Demo conditions** load a nominal day, a deconditioning episode, or a medical event in one click — useful for judging and for briefing the crew.
 

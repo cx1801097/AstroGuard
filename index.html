@@ -9,6 +9,89 @@
 </head>
 <body>
 
+<main id="portal" class="portal">
+  <section id="homeView" class="portal-view">
+    <h1>CREW CHECK</h1>
+    <p>Review crew health, spot changes in vital signs, and prepare a check-in for ground review.</p>
+    <div class="portal-options">
+      <button type="button" class="card portal-option" data-open="simulator"><strong>Simulator</strong><span>Explore the dashboard with a simulated mission.</span></button>
+      <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
+      <button type="button" class="card portal-option" data-open="mission"><strong>New mission</strong><span>Set up a mission and open a measured crew record.</span></button>
+      <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Pair a compatible heart-rate sensor and record real readings.</span></button>
+    </div>
+  </section>
+  <section id="missionView" class="portal-view" hidden>
+    <button type="button" class="btn" data-open="home">Home</button>
+    <h1>New mission</h1>
+    <form id="missionForm" class="card">
+      <div class="mission-form-grid">
+        <div class="field"><label for="missionTitle">Mission name</label><input id="missionTitle" name="name" required maxlength="80"></div>
+        <div class="field"><label for="missionCode">Mission ID</label><input id="missionCode" name="identifier" maxlength="48"></div>
+        <div class="field"><label for="vehicle">Spacecraft type or model</label><input id="vehicle" name="vehicle" required maxlength="80"></div>
+        <div class="field"><label for="operator">Mission operator</label><input id="operator" name="operator" maxlength="80"></div>
+        <div class="field"><label for="launchDate">Launch date</label><input type="date" id="launchDate" name="launchDate" required></div>
+        <div class="field"><label for="returnDate">Planned return date</label><input type="date" id="returnDate" name="returnDate"></div>
+        <div class="field"><label for="missionStatus">Mission status</label><select id="missionStatus" name="status"><option>Planned</option><option>Active</option><option>Completed</option><option>On hold</option></select></div>
+        <div class="field"><label for="missionPhase">Flight phase</label><select id="missionPhase" name="phase"><option>Preflight</option><option>Ascent</option><option>In orbit</option><option>Transit</option><option>Surface operations</option><option>Reentry</option><option>Recovery</option></select></div>
+        <div class="field"><label for="missionDestination">Destination or orbit</label><input id="missionDestination" name="destination" maxlength="80"></div>
+        <div class="field"><label for="launchSite">Launch site</label><input id="launchSite" name="launchSite" maxlength="80"></div>
+        <div class="field"><label for="missionCrew">Monitored crew ID</label><input id="missionCrew" name="crew" required maxlength="24"></div>
+        <div class="field"><label for="crewSize">Total crew size</label><input id="crewSize" name="crewSize" type="number" min="1" step="1"></div>
+        <div class="field"><label for="initialDay">Current flight day</label><input id="initialDay" name="flightDay" type="number" min="1" step="1" value="1" required></div>
+        <div class="field"><label for="medicalChannel">Private medical channel reference</label><input id="medicalChannel" name="medicalChannel" maxlength="100"></div>
+      </div>
+      <div class="field"><label for="missionNotes">Mission objectives and operational notes</label><textarea id="missionNotes" name="notes" maxlength="1000" rows="3"></textarea></div>
+      <button type="submit" class="btn btn-primary">Create mission</button>
+      <p id="missionFormStatus" role="status"></p>
+    </form>
+    <section id="savedMissionPanel" class="card" hidden>
+      <div class="field"><label for="savedMission">Resume a saved mission</label><select id="savedMission"></select></div>
+      <button type="button" id="resumeMission" class="btn">Open mission</button>
+    </section>
+  </section>
+  <section id="wearableView" class="portal-view" hidden>
+    <button type="button" class="btn" id="wearableBack">Back</button>
+    <h1>Connect wearable device</h1>
+    <div class="card">
+      <p>Use a Bluetooth Low Energy device that broadcasts the standard Heart Rate Service. Enable heart-rate broadcasting on the device first.</p>
+      <div class="portal-actions">
+        <button type="button" id="pairWearable" class="btn btn-primary">Choose device</button>
+        <button type="button" id="reconnectWearable" class="btn" disabled>Reconnect</button>
+        <button type="button" id="disconnectWearable" class="btn" disabled>Disconnect</button>
+      </div>
+      <p id="wearableStatus" role="status">No device connected.</p>
+      <p id="wearableReading">Live heart rate · —</p>
+      <div class="portal-actions">
+        <button type="button" id="recordWearable" class="btn" disabled>Start recording</button>
+        <button type="button" id="exportWearable" class="btn">Export readings</button>
+      </div>
+      <p id="wearableRecordStatus" role="status"></p>
+    </div>
+  </section>
+</main>
+
+<div id="consoleView" hidden>
+<nav class="console-navigation" aria-label="Workspace navigation">
+  <button type="button" class="btn" data-open="home">Home</button>
+  <strong id="consoleMode"></strong>
+  <button type="button" class="btn" id="missionWearable" data-open="wearable" hidden>Connect wearable device</button>
+  <button type="button" class="btn" id="captureWearable" hidden disabled>Use latest heart rate</button>
+  <p id="missionWearableStatus" role="status" hidden></p>
+</nav>
+<details id="missionProfile" class="replay-banner card" hidden>
+  <summary>Mission details</summary>
+  <dl id="missionProfileFields"></dl>
+</details>
+<section id="i4Replay" class="replay-banner card" hidden>
+  <h2>Inspiration4 mission playback</h2>
+  <div class="field"><label for="i4Day">Mission day · Eastern time</label><select id="i4Day">
+    <option value="1">September 15 · Launch</option><option value="2">September 16 · In orbit</option>
+    <option value="3">September 17 · In orbit</option><option value="4">September 18 · Splashdown</option>
+  </select></div>
+  <p id="i4MilestoneText"></p>
+  <p id="i4DataStatus" role="status"></p>
+  <p><a href="https://www.spacex.com/launches/inspiration4/">SpaceX mission timeline</a> · <a href="https://www.nasa.gov/osdr-latest-news-i4-mission-datasets/">NASA research archive</a></p>
+</section>
 <header class="topbar">
   <div class="brand">
     <div class="brand-mark" aria-hidden="true">
@@ -103,7 +186,6 @@
         <button class="tab" data-tab="trends" role="tab" aria-selected="false">Trends</button>
         <button class="tab" data-tab="plan" role="tab" aria-selected="false">Action plan</button>
         <button class="tab" data-tab="log" role="tab" aria-selected="false">Mission log</button>
-        <button class="tab" id="i4Tab" data-tab="i4" role="tab" aria-controls="i4Replay" aria-selected="false">I4 mission replay</button>
       </nav>
       <div class="workspace-tools">
         <button id="demoBtn" class="btn btn-ghost" title="Load the 30-day sample mission">Demo mission</button>
@@ -175,48 +257,10 @@
         </div>
       </div>
 
-      <section class="pane i4-replay" id="i4Replay" data-pane="i4" role="tabpanel" aria-labelledby="i4Tab">
-        <div class="pane-head">
-          <h2>Inspiration4 mission replay</h2>
-          <p class="muted">September 15–18, 2021 · Eastern time</p>
-        </div>
-        <div class="card">
-          <div class="field">
-            <label for="i4Milestone">Mission milestone</label>
-            <select id="i4Milestone">
-              <option value="launch">Launch · September 15</option>
-              <option value="orbit">In orbit · September 16–18</option>
-              <option value="splashdown">Splashdown · September 18</option>
-            </select>
-          </div>
-          <div aria-live="polite">
-            <article data-i4-step="launch">
-              <h3>Launch</h3>
-              <p>At 10:02 p.m. EDT, a Falcon 9 lifted off from Launch Complex 39A at Kennedy Space Center in Florida.</p>
-            </article>
-            <article data-i4-step="orbit" hidden>
-              <h3>In orbit</h3>
-              <p>Dragon carried four civilian crew members in low Earth orbit for about three days.</p>
-            </article>
-            <article data-i4-step="splashdown" hidden>
-              <h3>Splashdown</h3>
-              <p>Dragon and its crew returned safely off the Florida coast at 7:06 p.m. EDT.</p>
-            </article>
-          </div>
-        </div>
-        <div class="card">
-          <h3>Health data pending</h3>
-          <p>Vital-sign readings and detection results will appear here once the replay dataset is provided.</p>
-        </div>
-        <p class="muted">
-          <a href="https://www.spacex.com/launches/inspiration4/">SpaceX mission timeline</a>
-          · <a href="https://www.nasa.gov/osdr-latest-news-i4-mission-datasets/">NASA Inspiration4 research archive</a>
-        </p>
-      </section>
-
     </div>
   </section>
 </main>
+</div>
 
 <footer class="footer">
   <span>CREW CHECK · prototype built for the NASA Space Apps Challenge · rule-based decision support, <strong>not a medical device</strong></span>
@@ -232,6 +276,9 @@
 <script src="js/body-map.js"></script>
 <script src="js/storage.js"></script>
 <script src="data/sample-mission.js"></script>
+<script src="data/i4-replay.js"></script>
+<script src="js/wearable.js"></script>
 <script src="js/app.js"></script>
+<script src="js/portal.js"></script>
 </body>
 </html>

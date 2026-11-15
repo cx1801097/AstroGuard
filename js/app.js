@@ -34,6 +34,9 @@
 
   var state = {
     mission: null,
+    scope: '',
+    mode: 'simulator',
+    wearable: null,
     draft: {},
     activity: 'unknown',
     source: 'measured',
@@ -70,6 +73,7 @@
     state.quality = entry ? cloneObj(entry.quality) : {};
     state.symptoms = entry ? (entry.symptoms || []).slice() : [];
     state.note = entry ? entry.note || '' : '';
+    state.wearable = entry ? entry.wearable || null : null;
   }
 
   function detectionInput() {
@@ -83,7 +87,7 @@
     };
   }
 
-  function persist() { Store.save(state.mission); }
+  function persist() { return state.mode !== 'replay' && Store.save(state.mission, state.scope); }
 
   function fmtVal(metric, v) {
     if (typeof v !== 'number' || isNaN(v)) return '\u2014';
@@ -180,6 +184,7 @@
   var metricInputSyncs = {};
 
   function setMetric(id, value, source) {
+    if (id === 'heartRate') state.wearable = null;
     if (value === null) delete state.draft[id];
     else state.draft[id] = value;
     delete state.quality[id];
@@ -418,8 +423,10 @@
       esc(detection.severity) + '</span></h4><p>' + esc(Detection.sourceLabels[detection.source]) +
       '</p><ul>' + detection.reasons.map(function (reason) {
         return '<li>' + esc(reason) + '</li>';
-      }).join('') + '</ul><p><strong>Crew guidance</strong> ' + esc(guidance.advice) + '</p>';
-    var report = Detection.reviewReport(state.mission.flightDay, detection);
+      }).join('') + '</ul>' + (state.mode === 'replay'
+        ? '<p>Historical playback · ' + esc(Detection.sourceLabels[detection.source]) + '</p>'
+        : '<p><strong>Crew guidance</strong> ' + esc(guidance.advice) + '</p>');
+    var report = state.mode === 'replay' ? '' : Detection.reviewReport(state.mission.flightDay, detection);
     $('#groundReview').hidden = !report;
     if (!report) $('#groundReview').open = false;
     $('#groundReport').value = report;
@@ -570,12 +577,14 @@
      ACTIONS
      ============================================================ */
   function saveEntry() {
+    if (state.mode === 'replay') return;
     var day = state.mission.flightDay;
     var values = sanitizeDraft();
     var entry = Object.assign(detectionInput(), {
       values: values,
       symptoms: state.symptoms.slice().sort(),
       note: state.note || '',
+      wearable: state.wearable,
       savedAt: new Date().toISOString()
     });
     var replaced = false;
@@ -665,7 +674,9 @@
 
   function importFile(file) {
     var reader = new FileReader();
+    var targetMission = state.mission;
     reader.onload = function () {
+      if (state.mode !== 'simulator' || state.mission !== targetMission) return;
       try {
         var mission = Store.fromJSON(String(reader.result));
         state.mission = mission;
@@ -701,12 +712,6 @@
         $$('.pane').forEach(function (p) {
           p.classList.toggle('is-active', p.getAttribute('data-pane') === state.tab);
         });
-      });
-    });
-
-    $('#i4Milestone').addEventListener('change', function (ev) {
-      $$('#i4Replay [data-i4-step]').forEach(function (step) {
-        step.hidden = step.getAttribute('data-i4-step') !== ev.target.value;
       });
     });
 
@@ -751,7 +756,7 @@
     $('#resetBtn').addEventListener('click', resetMission);
 
     $('#exportBtn').addEventListener('click', function () {
-      saveEntry();
+      if (state.mode === 'simulator') saveEntry();
       Store.download(state.mission);
       toast('Mission log exported as JSON.');
     });
@@ -794,6 +799,7 @@
       if (!btn || !btn.getAttribute) return;
       var act = btn.getAttribute('data-act');
       var day = parseInt(btn.getAttribute('data-day'), 10);
+      if (state.mode === 'replay') return;
       if (act === 'load') loadEntry(day);
       else if (act === 'del') deleteEntry(day);
     });
@@ -808,29 +814,35 @@
      BOOT
      ============================================================ */
   function boot() {
-    var loaded = Store.load();
-    if (loaded) {
-      state.mission = loaded;
-    } else {
-      state.mission = window.CC_SAMPLE.build();
-      Store.save(state.mission);
-    }
+    buildCheckin();
+    bindEvents();
+  }
 
+  function open(mode, mission, scope) {
+    if (mode !== 'replay' && state.mode === mode && state.scope === scope && state.mission) return;
+    state.mode = mode;
+    state.scope = scope;
+    state.mission = mission;
     var today = entryForDay(state.mission.flightDay);
     var last = lastEntry();
     setDraft(today && (!today.crew || today.crew === state.mission.crew) ? today : null,
-      last ? Detection.provenance(last.source) : 'measured');
-
-    buildCheckin();
-    bindEvents();
+      last ? Detection.provenance(last.source) : mode === 'simulator' ? 'simulated' : 'measured');
+    $('.checkin-panel').inert = mode === 'replay';
+    $('.checkin-panel').toggleAttribute('aria-disabled', mode === 'replay');
     syncCheckin();
     refresh();
     renderLog();
-
-    if (!loaded) {
-      toast('Demo mission loaded \u2014 press Reset to start your own.');
-    }
   }
+
+  function useWearable(sample) {
+    if (state.mode !== 'mission' || !sample) return;
+    setMetric('heartRate', sample.value, 'both');
+    state.wearable = { heartRate: sample };
+    updateSaveState();
+    toast('Wearable heart rate added to this check-in. Save to keep it.');
+  }
+
+  window.CC_CONSOLE = { open: open, useWearable: useWearable };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

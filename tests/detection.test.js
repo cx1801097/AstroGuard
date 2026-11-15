@@ -138,3 +138,29 @@ test('browser storage import/export preserves context, quality, and missing valu
   assert.equal(record.entries[1].crew, 'A');
   assert.deepEqual(record.entries[1].quality, { heartRate: 'invalid' });
 });
+
+test('named mission records preserve metadata and wearable provenance without replacing the simulator', () => {
+  const localStorage = Object.create(null);
+  Object.defineProperties(localStorage, {
+    getItem: { value: key => localStorage[key] || null },
+    setItem: { value: (key, value) => { localStorage[key] = value; } }
+  });
+  const browser = vm.createContext({ window: { localStorage } });
+  for (const file of ['detection', 'storage']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), browser);
+  }
+  const storage = browser.window.CC_STORAGE;
+  const entry = checkIn(1, { heartRate: 76 }, { wearable: {
+    heartRate: { value: 76, timestamp: '2026-11-14T09:00:00Z', provider: 'ble-hrs' }
+  } });
+  storage.save({ ...storage.emptyMission(), name: 'Simulator' });
+  storage.save({
+    ...storage.emptyMission(), name: 'Crew mission', entries: [entry],
+    details: { vehicle: 'Test vehicle', launchDate: '2026-11-14' }
+  }, 'mission-test');
+  assert.equal(storage.load().name, 'Simulator');
+  assert.equal(storage.listMissions().length, 1);
+  const mission = storage.load('mission-test');
+  assert.equal(mission.details.vehicle, 'Test vehicle');
+  assert.equal(mission.entries[0].wearable.heartRate.provider, 'ble-hrs');
+});

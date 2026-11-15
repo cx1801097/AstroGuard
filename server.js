@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
   const rel = url === '/' ? '/index.html' : url;
   const file = path.join(ROOT, path.normalize(rel));
 
-  if (!/^\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/sample-mission\.js)$/.test(rel)) {
+  if (!/^\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/(?:sample-mission|i4-replay)\.js)$/.test(rel)) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not found');
     return;
