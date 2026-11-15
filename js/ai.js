@@ -37,11 +37,16 @@ window.CC_AI = (function () {
 
   var MAX_NOTE = 240;
   var MAX_QUESTION = 400;
-  var TIMEOUT_MS = 42000;
 
-  /* Politeness cap so a stuck button cannot burn free-tier quota. */
+  /* The server may sweep several free models before answering, so the
+     client waits longer than any single upstream call. The request is
+     aborted only if the whole exchange stalls. */
+  var TIMEOUT_MS = 95000;
+
+  /* Politeness cap so a stuck button cannot burn free-tier quota.
+     A transparent retry does not count as a new question. */
   var WINDOW_MS = 10 * 60 * 1000;
-  var MAX_PER_WINDOW = 6;
+  var MAX_PER_WINDOW = 8;
   var recent = [];
 
   var status = {
@@ -257,19 +262,18 @@ window.CC_AI = (function () {
   /* ------------------------------------------------------------
      One request, one validator. The proxy always answers with a
      result envelope; a clean refusal arrives as `refused: true`.
-     ------------------------------------------------------------ */
-  function send(payload, validateFn) {
-    if (rateLimited()) {
-      return Promise.resolve({
-        ok: false,
-        error: 'Assistant limit reached for now. Try again later \u2014 the rule-based verdict is unaffected.'
-      });
-    }
 
+     Free models fail transiently often (rate-limited, empty body,
+     timeout). The proxy already sweeps the model pool, so a failure
+     here is worth one more try before the crew member is told the
+     assistant is unavailable.
+
+     Each attempt gets its own controller and timer: a retry must not
+     inherit an already-aborted signal from the attempt before it.
+     ------------------------------------------------------------ */
+  function attempt(payload, validateFn, isRetry) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
-
-    recent.push(Date.now());
 
     return fetch(ENDPOINT, {
       method: 'POST',
@@ -313,6 +317,35 @@ window.CC_AI = (function () {
         if (timer) clearTimeout(timer);
         return res;
       });
+  }
+
+  function send(payload, validateFn) {
+    if (rateLimited()) {
+      return Promise.resolve({
+        ok: false,
+        error: 'Assistant limit reached for now. Try again later \u2014 the rule-based verdict is unaffected.'
+      });
+    }
+
+    recent.push(Date.now());
+
+    return attempt(payload, validateFn, false).then(function (res) {
+      /* One transparent retry when the upstream was merely
+         unavailable. A refusal or a scope failure is never retried. */
+      if (res.ok || res.refused || /outside its scope/.test(res.error || '')) return res;
+
+      return attempt(payload, validateFn, true).then(function (second) {
+        if (second.ok) return second;
+        if (second.refused) return second;
+        /* Prefer the most specific explanation available. The server
+           knows when the daily free quota is the cause; the first
+           attempt may only have seen a generic rate limit. */
+        var first = res.error || '';
+        var again = second.error || '';
+        var msg = /quota/i.test(again) ? again : (/quota/i.test(first) ? first : again);
+        return { ok: false, error: msg };
+      });
+    });
   }
 
   /** Second opinion on one saved check. */

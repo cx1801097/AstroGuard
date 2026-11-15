@@ -44,8 +44,14 @@ const OPENROUTER_MODELS = 'https://openrouter.ai/api/v1/models';
 
 const MAX_BODY = 32 * 1024;
 const MAX_FINDINGS = 24;
-const MAX_ATTEMPTS = 3;
-const OVERALL_TIMEOUT_MS = 36000;
+
+/* Free models are flaky: a model can be rate-limited, return an empty
+   body, or time out, sometimes all at once. The router therefore tries
+   several candidates per request and, if the first pass fails, makes a
+   second pass over the remaining pool before giving up. */
+const MAX_ATTEMPTS = 5;
+const MAX_ROUNDS = 2;
+const OVERALL_TIMEOUT_MS = 80000;
 const ATTEMPT_TIMEOUT_MS = 19000;
 const CATALOG_TTL_MS = 30 * 60 * 1000;
 
@@ -234,12 +240,21 @@ function isCoolingDown(id) {
 function markFailure(id, kind) {
   const h = modelHealth.get(id) || { fails: 0 };
   h.fails += 1;
-  h.cooldownUntil = Date.now() + (kind === 'rate' || kind === 'credit' ? 3 * 60 * 1000 : 60 * 1000);
+  h.lastKind = kind;
+  /* A rate-limited or out-of-credit model is not worth retrying for a
+     while. A model that returned an empty body is worth retrying
+     sooner: that failure is usually transient. */
+  h.cooldownUntil = Date.now() + (
+    kind === 'rate' ? 4 * 60 * 1000
+      : kind === 'credit' ? 10 * 60 * 1000
+        : kind === 'empty' || kind === 'scope' ? 15 * 1000
+          : 60 * 1000
+  );
   modelHealth.set(id, h);
 }
 
 function markSuccess(id) {
-  modelHealth.set(id, { fails: 0, cooldownUntil: 0 });
+  modelHealth.set(id, { fails: 0, lastKind: 'ok', cooldownUntil: 0 });
 }
 
 /* ------------------------------------------------------------
@@ -316,7 +331,6 @@ function planModels(tier, promptTokens, maxTokens, catalog) {
     return meta.context >= need;
   }).slice(0, MAX_ATTEMPTS);
 }
-
 /* ------------------------------------------------------------
    Payload validation.
    The client is not trusted either: only a well-formed check
@@ -594,53 +608,91 @@ async function handleAI(req, res) {
 
   const started = Date.now();
   const attempts = [];
+  const tried = new Set();
   let lastKind = null;
+  let answered = false;
 
-  for (const model of plan) {
-    const remaining = OVERALL_TIMEOUT_MS - (Date.now() - started);
-    if (remaining < 1500) { lastKind = 'timeout'; break; }
+  /* Two rounds over the pool. The first round uses the sized plan
+     (nearest capability tier first). If every candidate in it fails,
+     the second round sweeps the models that were skipped, because a
+     model that returned an empty body once may well answer next time. */
+  for (let round = 0; round < MAX_ROUNDS && !answered; round++) {
+    let roundPlan = plan;
 
-    try {
-      const outcome = await callModel(
-        model,
-        bodyText,
-        maxTokens,
-        Math.min(ATTEMPT_TIMEOUT_MS, remaining),
-        promptText,
-        normalise,
-        instruction
-      );
-      markSuccess(model);
-      attempts.push({ model, kind: outcome.refused ? 'refused' : 'ok' });
-      sendJSON(res, 200, {
-        refused: !!outcome.refused,
-        result: outcome.value || null,
-        kind: body.kind,
-        model,
-        free: true,
-        tier,
-        promptTokens,
-        maxTokens,
-        attempts
-      });
-      return;
-    } catch (err) {
-      lastKind = (err && err.kind) || 'error';
-      attempts.push({ model, kind: lastKind });
-      markFailure(model, lastKind);
+    if (round > 0) {
+      roundPlan = FREE_MODELS
+        .map((m) => m.id)
+        .filter((id) => !tried.has(id) || !isCoolingDown(id));
+      if (!roundPlan.length) {
+        /* Every model has been parked. Retry the ones that failed with
+           empty bodies only: those are the most likely to succeed. */
+        roundPlan = Array.from(tried).filter((id) => {
+          const h = modelHealth.get(id);
+          return h && h.lastKind === 'empty';
+        });
+        if (!roundPlan.length) break;
+      }
+    }
+
+    for (const model of roundPlan) {
+      if (tried.has(model) && round > 0 && !roundPlan.includes(model)) continue;
+      tried.add(model);
+
+      const remaining = OVERALL_TIMEOUT_MS - (Date.now() - started);
+      if (remaining < 1500) { lastKind = 'timeout'; break; }
+
+      try {
+        const outcome = await callModel(
+          model,
+          bodyText,
+          maxTokens,
+          Math.min(ATTEMPT_TIMEOUT_MS, remaining),
+          promptText,
+          normalise,
+          instruction
+        );
+        markSuccess(model);
+        attempts.push({ model, kind: outcome.refused ? 'refused' : 'ok', round });
+        sendJSON(res, 200, {
+          refused: !!outcome.refused,
+          result: outcome.value || null,
+          kind: body.kind,
+          model,
+          free: true,
+          tier,
+          promptTokens,
+          maxTokens,
+          attempts
+        });
+        answered = true;
+        break;
+      } catch (err) {
+        lastKind = (err && err.kind) || 'error';
+        attempts.push({ model, kind: lastKind, round });
+        markFailure(model, lastKind);
+      }
     }
   }
 
-  /* Never echo upstream bodies: they can contain account detail. */
-  const message = lastKind === 'rate'
-    ? 'Every free model is rate-limited right now. Try again in a few minutes; the rule-based verdict stands.'
-    : lastKind === 'credit'
-      ? 'No free model is available to this account right now. The rule-based verdict stands.'
-      : lastKind === 'timeout'
-        ? 'The free models did not answer in time. The rule-based verdict stands.'
-        : 'No free model returned a usable in-scope answer. The rule-based verdict stands.';
+  if (answered) return;
 
-  sendJSON(res, 502, { error: message, free: true, attempts });
+  /* Never echo upstream bodies: they can contain account detail. But
+     the daily free-model quota is worth naming, because it is the one
+     cause the crew member can actually do something about. */
+  const dailyQuotaHit = attempts.length >= 4 &&
+    attempts.every((a) => a.kind === 'rate' || a.kind === 'timeout');
+
+  const message = dailyQuotaHit
+    ? 'The free model quota for today is used up. The rule-based verdict stands and every action still applies.'
+    : lastKind === 'rate'
+      ? 'Every free model is rate-limited right now. Try again in a few minutes; the rule-based verdict stands.'
+      : lastKind === 'credit'
+        ? 'No free model is available to this account right now. The rule-based verdict stands.'
+        : lastKind === 'timeout'
+          ? 'The free models did not answer in time. The rule-based verdict stands.'
+          : 'No free model returned a usable in-scope answer. Try again in a moment; the rule-based verdict stands.';
+
+  sendJSON(res, 502, { error: message, free: true, quotaExhausted: dailyQuotaHit, attempts });
 }
 
 /* ------------------------------------------------------------

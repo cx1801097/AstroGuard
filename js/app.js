@@ -998,6 +998,13 @@
         '<p>' + esc(m.text) + '</p>' +
       '</div>';
     }
+    if (m.role === 'thinking') {
+      return '<div class="bubble bubble-thinking">' +
+        '<span class="bubble-who">Assistant \u00b7 thinking</span>' +
+        '<p class="thinking-line"><span class="thinking-dot"></span>' +
+          'Working through your readings. Free models can take a little while.</p>' +
+      '</div>';
+    }
     if (m.role === 'assistant') {
       return '<div class="bubble bubble-ai' + (m.escalate ? ' is-escalate' : '') + '">' +
         '<span class="bubble-who">Assistant' + (m.escalate ? ' \u00b7 escalate now' : '') + '</span>' +
@@ -1023,6 +1030,28 @@
     var input = $('#askInput');
     var btn = $('#askBtn');
     if (btn) btn.disabled = !st.ready || state.qaBusy || !input || !input.value.trim();
+
+    /* When the assistant is not reachable, say so plainly and say why,
+       instead of leaving a disabled button that looks broken. */
+    var notice = $('#assistNotice');
+    if (notice) {
+      if (!AI) {
+        notice.innerHTML = '<strong>The assistant is not loaded on this deployment.</strong> ' +
+          'The rule-based verdict and every action below are complete without it.';
+        notice.hidden = false;
+      } else if (state.aiProbe && !state.aiProbe.available) {
+        notice.innerHTML = '<strong>The assistant is not connected.</strong> ' +
+          'It needs the local proxy that holds the model credential, and this page is being served without it. ' +
+          'Run <code>node server.js</code> in the project folder and open the address it prints. ' +
+          'The rule-based verdict, the actions and the handover report are complete without it.';
+        notice.hidden = false;
+      } else if (state.aiProbe && state.aiProbe.available && state.aiProbe.reason) {
+        notice.innerHTML = esc(state.aiProbe.reason);
+        notice.hidden = false;
+      } else {
+        notice.hidden = true;
+      }
+    }
 
     var thread = $('#askThread');
     if (thread) {
@@ -1058,9 +1087,10 @@
     if (!probe) {
       body = '<p class="muted">Checking for the assistant proxy\u2026</p>';
     } else if (!probe.available) {
-      body = '<p class="ai-offline">The assistant is not connected. ' +
+      body = '<p class="ai-offline">The assistant is not connected, so there is no second opinion. ' +
         '<strong>The verdict above is complete without it</strong> \u2014 the assistant only ever adds a second opinion.</p>' +
-        (probe.reason ? '<p class="muted small">' + esc(probe.reason) + '</p>' : '');
+        (probe.reason ? '<p class="muted small">' + esc(probe.reason) + '</p>' : '') +
+        '<p class="muted small">Run <code>node server.js</code> in the project folder and open the address it prints to use it.</p>';
     } else if (!mine || mine.status === 'idle') {
       body = '<button type="button" class="btn" data-act="ask-ai">Review ' + esc(dayLabel(entry)) + '</button>';
     } else if (mine.status === 'busy') {
@@ -1140,6 +1170,7 @@
 
     state.qaBusy = true;
     state.qa.push({ role: 'crew', text: question });
+    state.qa.push({ role: 'thinking' });
     state.qa = state.qa.slice(-6);
     var input = $('#askInput');
     if (input) input.value = '';
@@ -1147,6 +1178,8 @@
 
     AI.ask(AI.buildQuestion(state.record, entry, result, question)).then(function (res) {
       state.qaBusy = false;
+      /* Drop the thinking placeholder. */
+      state.qa = state.qa.filter(function (m) { return m.role !== 'thinking'; });
       if (res.ok) {
         state.qa.push({
           role: 'assistant',
@@ -1161,7 +1194,11 @@
           text: 'That question was refused. The assistant only answers mission-health questions about this crew member and this check.'
         });
       } else {
-        state.qa.push({ role: 'note', text: res.error || 'The assistant did not answer. The rule-based verdict stands.' });
+        state.qa.push({
+          role: 'note',
+          text: (res.error || 'The assistant did not answer. The rule-based verdict stands.') +
+            ' You can ask again, and the verdict, the actions and the handover report do not depend on it.'
+        });
       }
       state.qa = state.qa.slice(-6);
       renderAssistant();
