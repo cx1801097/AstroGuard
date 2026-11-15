@@ -279,6 +279,16 @@
             </div>
             <button type="button" id="runLocalAI" class="btn">Highlight with local AI</button>
             <p id="localAIStatus" role="status">Qwen3 runs on this device. First use on the web downloads about 2.3 GB.</p>
+            <details id="localAIHelp">
+              <summary>How to start local AI</summary>
+              <ol>
+                <li>Open a terminal in the extracted CREW CHECK project folder.</li>
+                <li>While online, run <code>node scripts/prepare-offline-ai.js</code> and wait for “Offline assets ready.”</li>
+                <li>Run <code>node server.js</code> and leave the terminal open.</li>
+                <li>Open <a href="http://localhost:8080/">http://localhost:8080/</a> in a WebGPU-enabled browser, then choose <strong>Health Monitoring System → Action plan → Highlight with local AI</strong>.</li>
+              </ol>
+              <p>On the hosted HTTPS version, the first click downloads the model in the background and displays progress here.</p>
+            </details>
             <p id="localAIFocus" hidden></p>
           </aside>
           <div class="plan-evidence">

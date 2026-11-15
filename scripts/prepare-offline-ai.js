@@ -1,6 +1,6 @@
 /* Run before disconnecting. Downloads the same pinned browser model into ai-assets/. */
 const fs = require('node:fs');
-const { mkdir, readFile, rename, unlink } = require('node:fs/promises');
+const { mkdir, readFile, rename, unlink, writeFile } = require('node:fs/promises');
 const path = require('node:path');
 const { Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
@@ -27,6 +27,9 @@ async function download(url, destination, expectedBytes) {
 
 async function prepare() {
   await mkdir(weights, { recursive: true });
+  const ready = path.join(root, 'ready.json');
+  await unlink(ready).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  console.log('Downloading Qwen3 for offline use. The model is about 2.3 GB.');
   const configName = 'mlc-chat-config.json';
   const manifestName = 'ndarray-cache.json';
   for (const file of [configName, manifestName]) {
@@ -49,6 +52,7 @@ async function prepare() {
     console.log('Weight shard ' + (index + 1) + '/' + manifest.records.length);
     await download(new URL(shard.dataPath, model.weights), path.join(weights, shard.dataPath), shard.nbytes);
   }
+  await writeFile(ready, JSON.stringify({ model: model.id, weights: model.weights }));
   console.log('Offline assets ready. Start node server.js and open http://localhost:8080.');
 }
 

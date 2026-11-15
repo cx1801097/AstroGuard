@@ -6,7 +6,8 @@ test('offline launch uses only local runtime, model weights and WebAssembly URLs
   assert.deepEqual(modelAssets('http://localhost:8080/index.html'), {
     runtime: 'http://localhost:8080/ai-assets/web-llm.js',
     weights: 'http://localhost:8080/ai-assets/model/resolve/local/',
-    wasm: 'http://localhost:8080/ai-assets/model.wasm'
+    wasm: 'http://localhost:8080/ai-assets/model.wasm',
+    ready: 'http://localhost:8080/ai-assets/ready.json'
   });
   assert.equal(modelAssets('http://127.0.0.1:8080/').weights, 'http://127.0.0.1:8080/ai-assets/model/resolve/local/');
   assert.equal(modelAssets('https://cx1801097.github.io/NasaSpaceAppChallangeCCC/'), model);

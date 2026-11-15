@@ -508,7 +508,24 @@
     $('#localAIStatus').textContent = message;
   }
 
-  function runLocalAI() {
+  function localAISetup() {
+    var help = $('#localAIHelp');
+    var assets = LocalAI.modelAssets(location.href);
+    var status = $('#localAIStatus');
+    if (!assets) {
+      $('#runLocalAI').disabled = true;
+      status.textContent = 'This file preview cannot start Qwen3. Follow the steps below to open the local server.';
+      help.open = true;
+    } else if (!navigator.gpu) {
+      $('#runLocalAI').disabled = true;
+      status.textContent = 'WebGPU is unavailable. Open CREW CHECK in a WebGPU-enabled browser with hardware acceleration.';
+      help.open = true;
+    } else if (assets.ready) {
+      status.textContent = 'On localhost, prepare the model files before the first use.';
+    }
+  }
+
+  async function runLocalAI() {
     if (aiPending || !aiObservations.length) return;
     var assets = LocalAI.modelAssets(location.href);
     if (!assets || !navigator.gpu) {
@@ -520,6 +537,15 @@
     $('#localAIStatus').textContent = 'Opening local model…';
     aiPending = aiObservations;
     try {
+      if (assets.ready && !aiWorker) {
+        const response = await fetch(assets.ready, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        const ready = response.ok ? await response.json() : null;
+        if (ready?.model !== LocalAI.model.id || ready.weights !== LocalAI.model.weights) {
+          $('#localAIHelp').open = true;
+          stopLocalAI('Model files are missing. Run node scripts/prepare-offline-ai.js first.', false);
+          return;
+        }
+      }
       if (!aiWorker) {
         aiWorker = new Worker(new URL('./js/local-ai-worker.js', location.href), { type: 'module' });
         aiWorker.onerror = function () {
@@ -898,6 +924,7 @@
   function boot() {
     buildCheckin();
     bindEvents();
+    localAISetup();
   }
 
   function open(mode, mission, scope) {

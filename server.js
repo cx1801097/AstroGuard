@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
   const rel = url === '/' ? '/index.html' : url;
   const file = path.join(ROOT, path.normalize(rel));
 
-  const aiAsset = /^\/ai-assets\/(?:web-llm\.js|model\.wasm|model\/resolve\/local\/(?:mlc-chat-config\.json|ndarray-cache\.json|params_shard_\d+\.bin|tokenizer\.(?:json|model)))$/;
+  const aiAsset = /^\/ai-assets\/(?:ready\.json|web-llm\.js|model\.wasm|model\/resolve\/local\/(?:mlc-chat-config\.json|ndarray-cache\.json|params_shard_\d+\.bin|tokenizer\.(?:json|model)))$/;
   if (aiAsset.test(rel)) {
     const stream = fs.createReadStream(file);
     stream.once('open', () => {

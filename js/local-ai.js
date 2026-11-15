@@ -22,7 +22,8 @@
         runtime: new URL('web-llm.js', assets).href,
         // WebLLM appends resolve/main/ to model URLs without an explicit revision path.
         weights: new URL('model/resolve/local/', assets).href,
-        wasm: new URL('model.wasm', assets).href
+        wasm: new URL('model.wasm', assets).href,
+        ready: new URL('ready.json', assets).href
       };
     }
     return page.protocol === 'https:' ? model : null;
