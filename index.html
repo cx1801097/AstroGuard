@@ -16,9 +16,17 @@
     <div class="portal-options">
       <button type="button" class="card portal-option" data-open="simulator"><strong>Health Monitoring System</strong><span>Explore the dashboard with a simulated mission.</span></button>
       <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
-      <button type="button" class="card portal-option" data-open="mission"><strong>New mission</strong><span>Set up a mission and open a measured crew record.</span></button>
+      <button type="button" class="card portal-option" data-open="missionConsole"><strong>New mission</strong><span>Open the crew-operated mission console.</span></button>
       <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Connect live over Bluetooth or import readings from your watch app.</span></button>
     </div>
+  </section>
+  <section id="missionConsoleView" class="portal-view" hidden>
+    <nav class="portal-actions" aria-label="Mission console navigation">
+      <button type="button" class="btn" data-open="home">Home</button>
+      <button type="button" class="btn" data-open="mission">Previous mission setup and saved records</button>
+    </nav>
+    <h1>New mission</h1>
+    <iframe id="missionConsoleFrame" title="CREW CHECK mission console" data-src="new-mission/index.html"></iframe>
   </section>
   <section id="missionView" class="portal-view" hidden>
     <button type="button" class="btn" data-open="home">Home</button>

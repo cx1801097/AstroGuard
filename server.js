@@ -71,7 +71,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (!/^\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/(?:sample-mission|i4-replay)\.js)$/.test(rel)) {
+  const appAsset = /^\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/(?:sample-mission|i4-replay)\.js)$/;
+  const missionAsset = /^\/new-mission\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/i4\/i4-missions\.js)$/;
+  if (!appAsset.test(rel) && !missionAsset.test(rel)) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not found');
     return;

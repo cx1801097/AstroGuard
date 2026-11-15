@@ -39,7 +39,7 @@
       const dashboard = ['simulator', 'replay', 'dashboard'].includes(next);
       byId('portal').hidden = dashboard;
       consoleView.hidden = !dashboard;
-      for (const name of ['home', 'mission', 'wearable']) byId(name + 'View').hidden = next !== name;
+      for (const name of ['home', 'missionConsole', 'mission', 'wearable']) byId(name + 'View').hidden = next !== name;
       consoleView.classList.toggle('replay-mode', next === 'replay');
       consoleView.classList.toggle('mission-mode', next === 'dashboard');
       byId('i4Replay').hidden = next !== 'replay';
@@ -50,6 +50,10 @@
       if (next === 'simulator') Console.open('simulator', Store.load() || window.CC_SAMPLE.build(), '');
       if (next === 'replay') showReplay();
       if (next === 'mission') showSavedMissions();
+      if (next === 'missionConsole') {
+        const frame = byId('missionConsoleFrame');
+        if (!frame.hasAttribute('src')) frame.src = frame.dataset.src;
+      }
       if (next === 'wearable') showWearableHistory();
       if (next === 'dashboard') {
         const { scope, mission } = activeMission;
