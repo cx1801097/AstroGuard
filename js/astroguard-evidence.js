@@ -2,24 +2,27 @@
   'use strict';
 
   const local = /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(location.origin);
+  // The standard references ship inside the build, so they resolve on the hosted site too.
+  const bundled = window.CC_ASTROGUARD_EVIDENCE || null;
   const requests = new Map();
 
+  function lookup(severity) {
+    if (bundled && Array.isArray(bundled[severity])) return Promise.resolve(bundled[severity]);
+    if (!local) return Promise.resolve([]);
+    return fetch('/api/astroguard-evidence?severity=' + encodeURIComponent(severity), {
+      cache: 'no-store', signal: AbortSignal.timeout(5000)
+    }).then(async response => {
+      if (!response.ok) throw new Error('Evidence lookup failed');
+      return (await response.json()).evidence;
+    }).catch(() => []);
+  }
+
   window.CC_RENDER_EVIDENCE = async function (container, severity) {
-    if (!local || !container || container.dataset.evidenceSeverity === severity) return;
+    if (!container || container.dataset.evidenceSeverity === severity) return;
     container.dataset.evidenceSeverity = severity;
     container.hidden = false;
-    container.textContent = 'Looking up local AstroGuard references…';
-    if (!requests.has(severity)) {
-      requests.set(severity, fetch('/api/astroguard-evidence?severity=' + encodeURIComponent(severity), {
-        cache: 'no-store', signal: AbortSignal.timeout(5000)
-      }).then(async response => {
-        if (!response.ok) throw new Error('Evidence lookup failed');
-        return (await response.json()).evidence;
-      }).catch(() => {
-        requests.delete(severity);
-        return [];
-      }));
-    }
+    container.textContent = 'Looking up AstroGuard references…';
+    if (!requests.has(severity)) requests.set(severity, lookup(severity));
     const evidence = await requests.get(severity);
     if (!container.isConnected || container.dataset.evidenceSeverity !== severity) return;
     if (!evidence.length) {
