@@ -497,12 +497,18 @@
   var geminiPending = false;
 
   function setGeminiScenario(detection, suggestion) {
-    var eligible = state.mode === 'simulator' && detection.source === 'simulated';
-    var available = Boolean(cloudAIUrl);
+    var inSimulator = state.mode === 'simulator';
+    var example = detection.source !== 'simulated';
     var panel = $('#geminiReview');
-    panel.hidden = !eligible;
-    var details = state.mission.details || {};
-    var next = eligible ? {
+    panel.hidden = !inSimulator;
+    var details = example ? {} : state.mission.details || {};
+    if (inSimulator && example) {
+      var preset = D.SCENARIOS.nominal;
+      detection = Detection.evaluate({ source: 'simulated', activity: 'rest', values: preset.values });
+      suggestion = Detection.crewSuggestion(detection, details, preset.symptoms);
+    }
+    var next = inSimulator ? {
+      example: example,
       request: {
         source: detection.source, severity: suggestion.severity, phase: details.phase,
         findings: suggestion.findingCodes,
@@ -513,10 +519,13 @@
     } : null;
     if (JSON.stringify(next) === JSON.stringify(geminiScenario)) return;
     geminiScenario = next;
-    $('#runGemini').disabled = !available || geminiPending;
+    $('#runGemini').disabled = !cloudAIUrl || geminiPending;
+    $('#runGemini').textContent = example ? 'Analyze a demo example with AI' : 'Analyze mission with AI';
     $('#geminiFindings').hidden = true;
     $('#geminiClarification').hidden = true;
-    $('#geminiStatus').textContent = 'Cloud AI reviews finding categories from the simulated check-in.';
+    $('#geminiStatus').textContent = example
+      ? 'Try a built-in simulated example. Your current check-in stays on this device.'
+      : 'Cloud AI reviews finding categories from the simulated check-in.';
   }
 
   async function runGemini() {
@@ -556,7 +565,8 @@
       findings.hidden = false;
       clarification.textContent = result.clarification;
       clarification.hidden = !result.clarification;
-      status.textContent = (result.model === 'amazon.nova-micro-v1:0' ? 'Amazon Nova Micro' : 'Gemini 2.5 Flash-Lite') + ' · prioritized review';
+      status.textContent = (result.model === 'amazon.nova-micro-v1:0' ? 'Amazon Nova Micro' : 'Gemini 2.5 Flash-Lite') +
+        (reviewing.example ? ' · simulated example' : ' · prioritized review');
     } catch {
       if (reviewing === geminiScenario) status.textContent = 'Cloud AI is unavailable. Use the crew guidance above.';
     } finally {
