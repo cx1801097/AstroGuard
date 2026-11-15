@@ -21,6 +21,7 @@ test('Bedrock receives only coded findings and preserves chest pain priority', a
     assert.deepEqual(request.inferenceConfig, { maxTokens: 120, temperature: 0 });
     assert.deepEqual(JSON.parse(request.messages[0].content[0].text), {
       severity: 'CRITICAL', phase: 'unspecified',
+      allowedPriorityIds: ['0', '1'], maxPriorities: 2,
       findings: [{ id: '0', kind: 'alert', metric: 'spo2' }, { id: '1', kind: 'chest_pain' }],
       questions: ['none']
     });
@@ -64,7 +65,9 @@ test('IAM mode invokes Converse without explicit credentials and validates its r
       assert.deepEqual(JSON.parse(command.input.messages[0].content[0].text).findings, [
         { id: '0', kind: 'alert', metric: 'spo2' }, { id: '1', kind: 'chest_pain' }
       ]);
-      return { output: { message: { content: [{ text: '{"priority":["0"],"clarification":"none"}' }] } } };
+      return { output: { message: { content: [{
+        text: 'Here is the JSON you requested:\n\n```json\n{"priority":["0","9"],"clarification":"none"}\n```'
+      }] } } };
     }
   }
   const review = createIamBedrockReview('ap-southeast-2', { BedrockRuntimeClient, ConverseCommand });
