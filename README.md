@@ -14,9 +14,10 @@ No install, no build step, no dependencies:
 - **Windows:** double-click `Open-I4-Offline.cmd`, or
 - **Any OS:** open `index.html` in a browser.
 
-Everything runs locally in the browser. The only optional network call is the
-simulated cloud review endpoint, which is configured in
-`data/cloud-ai-config.js`; an empty value hides the button entirely.
+Everything runs locally in the browser. The console makes two optional network
+calls: the simulated cloud review endpoint, configured in
+`data/cloud-ai-config.js` (an empty value hides the button), and the live NASA
+environment feed described under **Live environment data**.
 
 ## Layout
 
@@ -32,13 +33,39 @@ simulated cloud review endpoint, which is configured in
 ## What the console does
 
 1. **Health Monitoring System** — a simulated 30-day mission dashboard with 11
-   indicators, a clickable body map, trend charts and a ranked action plan.
+   indicators, a clickable body map, trend charts, a ranked action plan and an
+   **Environment** view that pulls live NASA ground conditions and natural events.
 2. **I4 mission playback** — browse Inspiration4 by mission day. Readings are
    read-only and run through the same detector.
 3. **New mission** — the crew-operated console with onboard resource fields, a
    Crew Suggestion column and the wearable intake bridge.
 4. **Connect wearable device** — Bluetooth live capture or import of readings
    exported from a watch app.
+
+## Live environment data
+
+The **Environment** tab of the Health Monitoring System reads two keyless NASA
+open APIs straight from the browser. Both send CORS headers, so the hosted site
+works without a proxy and without an API key.
+
+| Source | What it returns | Update rate |
+|---|---|---|
+| [NASA POWER](https://power.larc.nasa.gov/) | Satellite-derived surface conditions for the selected ground site: air temperature, surface pressure, relative humidity, dew point, wind, precipitation | Hourly analysis, published with a 2–3 day lag |
+| [NASA EONET](https://eonet.gsfc.nasa.gov/) | Natural events still open, with their position and distance from the selected site | Posted as they are detected |
+
+Three things the console is careful about:
+
+- **POWER publishes with a lag.** The panel shows the observation time of the
+  latest published analysis instead of presenting it as the current hour.
+- **POWER marks a missing observation as `-999`, not `null`.** Each parameter is
+  filtered on its own, so one missing hour does not blank out the rest.
+- **EONET still lists events open since 2002.** The feed asks for a 90-day window
+  so the list reflects what is genuinely current.
+
+If the network is unavailable, the console shows the last reading it saved on the
+device and marks it as saved rather than live. The feed is ground context for
+crew and ground support: it never feeds the health assessment and never replaces
+a mission-approved source.
 
 ## Data provenance
 

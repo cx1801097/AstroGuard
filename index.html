@@ -164,6 +164,7 @@
     <div class="stat"><span class="stat-k">Flight day</span><span class="stat-v" id="flightDayOut">—</span></div>
     <div class="stat"><span class="stat-k">Cum. dose</span><span class="stat-v" id="doseOut">—</span></div>
     <div class="stat"><span class="stat-k">Sleep debt · 7d</span><span class="stat-v" id="sleepDebtOut">—</span></div>
+    <div class="stat" id="groundEnvStat" hidden><span class="stat-k">Ground env</span><span class="stat-v" id="groundEnvOut">—</span></div>
   </div>
 
   <div class="readiness">
@@ -258,6 +259,7 @@
         <button class="tab" data-tab="trends" role="tab" aria-selected="false">Trends</button>
         <button class="tab" data-tab="plan" role="tab" aria-selected="false">Action plan</button>
         <button class="tab" data-tab="log" role="tab" aria-selected="false">Mission log</button>
+        <button class="tab" id="nasaLiveTab" data-tab="environment" role="tab" aria-selected="false" hidden>Environment</button>
       </nav>
       <div class="workspace-tools">
         <button id="demoBtn" class="btn btn-ghost" title="Load the 30-day sample mission">Demo mission</button>
@@ -468,6 +470,30 @@
         </div>
       </div>
 
+    <!-- ENVIRONMENT (live NASA) -->
+      <div class="pane" data-pane="environment">
+        <div class="pane-head">
+          <h2>Live environment context</h2>
+        </div>
+        <p class="muted live-intro">Ground conditions and active natural events from NASA open APIs. Observational context for crew and ground support — never a health input, and never a substitute for a mission-approved source.</p>
+        <div class="live-controls">
+          <div class="field"><label for="nasaLiveSite">Ground site</label><select id="nasaLiveSite"></select></div>
+          <div class="field live-custom" id="nasaLiveCustom" hidden>
+            <label for="nasaLiveLat">Latitude</label>
+            <input id="nasaLiveLat" type="number" step="0.0001" min="-90" max="90" placeholder="28.5729">
+          </div>
+          <div class="field live-custom" id="nasaLiveCustomLon" hidden>
+            <label for="nasaLiveLon">Longitude</label>
+            <input id="nasaLiveLon" type="number" step="0.0001" min="-180" max="180" placeholder="-80.6490">
+          </div>
+          <button type="button" class="btn btn-primary" id="nasaLiveRefresh">Refresh</button>
+          <p class="live-stamp" id="nasaLiveStamp" role="status">—</p>
+        </div>
+        <div id="nasaLiveBody" class="live-body" aria-live="polite">
+          <p class="muted">Live environment data is not available. Open the console with a network connection and refresh.</p>
+        </div>
+      </div>
+
     </div>
   </section>
 </main>
@@ -498,6 +524,7 @@
 <script src="js/app.js?v=4"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
+<script src="js/nasa-live.js"></script>
 <script src="js/portal.js"></script>
 </body>
 </html>
