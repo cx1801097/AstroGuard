@@ -390,6 +390,8 @@ input[type="range"]::-moz-range-thumb {
 .crew-suggestion h3 { font-size: 16px; }
 .crew-suggestion h4 { margin-top: 13px; margin-bottom: 4px; }
 .crew-suggestion p + p { margin-top: 10px; }
+#runLocalAI, #localAIStatus, #localAIFocus { margin-top: 10px; }
+#localAIStatus { color: var(--text-dim); font-size: 12px; }
 .mission-mode #planList { display: none; }
 .replay-mode .plan-columns { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 840px) {

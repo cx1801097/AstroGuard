@@ -257,7 +257,7 @@
       if (resources.medical || resources.procedures) resource += (resource ? ' ' : '') + 'Share the onboard medical inventory and checklist references with the medical officer.';
       if (resources.food || resources.water) resource += (resource ? ' ' : '') + 'Have the food and water inventory ready if the medical officer asks about intake.';
     }
-    return { severity, situation: statements.join(' '), next, resource };
+    return { severity, situation: statements.join(' '), next, resource, observations: statements };
   }
 
   const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion };

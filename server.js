@@ -18,6 +18,7 @@ const TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.wasm': 'application/wasm',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -37,6 +38,24 @@ const server = http.createServer((req, res) => {
   }
   const rel = url === '/' ? '/index.html' : url;
   const file = path.join(ROOT, path.normalize(rel));
+
+  const aiAsset = /^\/ai-assets\/(?:web-llm\.js|model\.wasm|model\/resolve\/local\/(?:mlc-chat-config\.json|ndarray-cache\.json|params_shard_\d+\.bin|tokenizer\.(?:json|model)))$/;
+  if (aiAsset.test(rel)) {
+    const stream = fs.createReadStream(file);
+    stream.once('open', () => {
+      res.writeHead(200, {
+        'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
+        'Cache-Control': 'no-store'
+      });
+      stream.pipe(res);
+    });
+    stream.once('error', () => {
+      if (res.headersSent) res.destroy();
+      else { res.writeHead(404); res.end('Offline model asset unavailable'); }
+    });
+    res.on('close', () => stream.destroy());
+    return;
+  }
 
   if (!/^\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/(?:sample-mission|i4-replay)\.js)$/.test(rel)) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });

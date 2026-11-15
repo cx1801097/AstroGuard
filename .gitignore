@@ -61,3 +61,4 @@ jupyter/.ipynb_checkpoints/
 *.log
 tmp/
 temp/
+ai-assets/

@@ -140,7 +140,20 @@ Enter SpO₂ (%) and heart rate (bpm), then select the source and the activity *
 - **Personal baseline:** Uses the median and scaled median absolute deviation (MAD) of usable, resting, threshold-free samples from the same crew member and source in the prior 30 flight days. It needs seven samples per vital and uses scale floors of 1 percentage point and 3 bpm. A downward oxygen deviation or either-direction pulse deviation of at least 3.5 scaled units is flagged. The same current reference is used to check persistence in the preceding raw observations.
 - **Persistence and fusion:** Two adjacent flight days are required for a baseline alert or combined safety escalation. A missed day, ambiguous duplicate day or unusable reading breaks the streak. A standalone absolute warning or critical reading is immediate. The prototype settings and references are in `js/detection.js`.
 
-The engine executes entirely in the browser, including when run from `index.html`. The optional local server serves the same assets. There is no model download, training corpus, API key, or telemetry. Mission readiness still covers the original body systems and symptoms. Vital-sign status covers only oxygen and pulse.
+The detector executes entirely in the browser, including when run from `index.html`. Detection needs no model download, API key, or telemetry. Mission readiness still covers the original body systems and symptoms. Vital-sign status covers only oxygen and pulse.
+
+### Optional on-device AI highlight
+
+Open **Action plan → Highlight with local AI** in a WebGPU browser. On GitHub Pages or another HTTPS static host, the first run downloads the WebLLM runtime and the Qwen3 4B model (about 2.3 GB). Inference happens in a browser worker. No cloud inference API or key is used. The model can select one existing observation to highlight. Health readings, alerts, next steps, and the ground handoff come from the existing rules. Model text cannot add findings, change severity, or prescribe treatment.
+
+For an offline setup, while still online, run:
+
+```sh
+node scripts/prepare-offline-ai.js
+node server.js
+```
+
+Open `http://localhost:8080`. On localhost the app loads the runtime and model exclusively from the local `ai-assets/` directory. Keep that directory with the app and test the highlight in a clean browser profile with networking disabled before relying on it. A standalone `file://` preview can run the detector and base guidance. The AI worker requires HTTPS or localhost. The model is optional and its unavailability leaves the original crew guidance visible. Physical hardware and full offline inference must be verified on the target computer. See [WebLLM](https://github.com/mlc-ai/web-llm) and the [Qwen3 4B WebLLM model files](https://huggingface.co/mlc-ai/Qwen3-4B-q4f32_1-MLC/tree/main).
 
 **Crew guidance and ground handoff.** The Action plan gives short, status-specific guidance. For a warning or critical result, **Review ground handoff** shows a copyable report with the flight day, reading source, activity, and detection findings. It excludes the crew name, free-text notes, raw flagged readings, and mission history. A critical result directs the crew to contact the flight surgeon through the mission’s approved private medical channel without waiting for the report. Simulated, digitized, and unspecified sources carry a prominent demonstration or unverified label. The dashboard generates the draft locally. It has no NASA connection or delivery confirmation. Actual integration requires a mission-authorized private channel and a crew review step. See [NASA medical operations and private medical communications](https://www.nasa.gov/reference/6-0-medical-operations/).
 

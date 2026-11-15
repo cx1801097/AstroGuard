@@ -12,6 +12,7 @@
   var Body = window.CC_BODYMAP;
   var Store = window.CC_STORAGE;
   var Detection = window.CC_DETECTION;
+  var LocalAI = window.CC_LOCAL_AI;
 
   /* ---------------- helpers ---------------- */
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -420,6 +421,7 @@
     var r = state.result;
     var detection = Detection.evaluate(detectionInput(), state.mission.entries);
     var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms);
+    setLocalAIObservations(state.mode === 'replay' ? [] : suggestion.observations);
     $('#crewSuggestion').hidden = state.mode === 'replay';
     $('#crewSituation').textContent = suggestion.situation;
     $('#crewNextStep').textContent = suggestion.next;
@@ -481,6 +483,75 @@
         '<ul class="action-list">' + sr.actions.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>' +
       '</div>';
     }).join('');
+  }
+
+  var aiWorker;
+  var aiPending;
+  var aiTimeout;
+  var aiObservations = [];
+
+  function setLocalAIObservations(observations) {
+    if (JSON.stringify(aiObservations) === JSON.stringify(observations)) return;
+    aiObservations = observations;
+    $('#localAIFocus').hidden = true;
+    $('#localAIFocus').textContent = '';
+  }
+
+  function stopLocalAI(message, resetWorker) {
+    clearTimeout(aiTimeout);
+    aiPending = null;
+    if (resetWorker && aiWorker) {
+      aiWorker.terminate();
+      aiWorker = null;
+    }
+    $('#runLocalAI').disabled = false;
+    $('#localAIStatus').textContent = message;
+  }
+
+  function runLocalAI() {
+    if (aiPending || !aiObservations.length) return;
+    var assets = LocalAI.modelAssets(location.href);
+    if (!assets || !navigator.gpu) {
+      stopLocalAI('Local AI needs a WebGPU browser on HTTPS or localhost. Crew guidance is available above.', false);
+      return;
+    }
+    $('#runLocalAI').disabled = true;
+    $('#localAIFocus').hidden = true;
+    $('#localAIStatus').textContent = 'Opening local model…';
+    aiPending = aiObservations;
+    try {
+      if (!aiWorker) {
+        aiWorker = new Worker(new URL('./js/local-ai-worker.js', location.href), { type: 'module' });
+        aiWorker.onerror = function () {
+          stopLocalAI('Local AI failed to start. Crew guidance is available above.', true);
+        };
+        aiWorker.onmessage = function (event) {
+          if (!aiPending) return;
+          var data = event.data;
+          if (data.failed) {
+            stopLocalAI('Model unavailable. Check the download, offline assets, or WebGPU support.', true);
+          } else if (data.running) {
+            $('#localAIStatus').textContent = 'Qwen3 is reviewing the findings on this device…';
+          } else if (Number.isFinite(data.progress)) {
+            $('#localAIStatus').textContent = 'Loading Qwen3 · ' + Math.round(100 * data.progress) + '%';
+          } else {
+            var focus = aiPending === aiObservations ? LocalAI.selectFocus(data.answer, aiPending) : null;
+            if (focus) {
+              $('#localAIFocus').textContent = focus;
+              $('#localAIFocus').hidden = false;
+            }
+            stopLocalAI(focus ? 'Qwen3 highlight · generated on this device' :
+              'No AI highlight for these readings. Crew guidance is available above.', false);
+          }
+        };
+      }
+      aiTimeout = setTimeout(function () {
+        stopLocalAI('Model loading timed out. Crew guidance is available above.', true);
+      }, 10 * 60 * 1000);
+      aiWorker.postMessage({ modelId: LocalAI.model.id, assets: assets, observations: aiPending });
+    } catch {
+      stopLocalAI('Could not open local AI. Crew guidance is available above.', true);
+    }
   }
 
   /* ============================================================
@@ -710,6 +781,7 @@
      EVENTS
      ============================================================ */
   function bindEvents() {
+    $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */
     $$('.tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
