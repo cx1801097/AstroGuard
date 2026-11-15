@@ -53,6 +53,42 @@
 
   var RING_CIRCUMFERENCE = 2 * Math.PI * 42;
 
+  /* The real NASA instruments and standards this tool is aligned to.
+     A link is given only where NASA publishes a stable page. These are
+     references for the crew member, not a claim of certification. */
+  var NASA_STANDARDS = [
+    {
+      name: 'NASA Space Flight Human-System Standard (NASA-STD-3001)',
+      detail: 'Crew health, sleep, exercise and radiation limits. The clinical bands, the sleep target and the exercise countermeasure schedule are shaped to this standard.',
+      url: 'https://standards.nasa.gov/standard/NASA/NASA-STD-3001'
+    },
+    {
+      name: 'NASA Human Research Program \u2014 five hazards of human spaceflight',
+      detail: 'Radiation, isolation and confinement, distance from Earth, gravity fields, and the hostile closed environment. This is the risk frame behind the eight body systems scored here.',
+      url: 'https://www.nasa.gov/hrp/hazards/'
+    },
+    {
+      name: 'International Space Station Medical Checklist',
+      detail: 'The procedure-led model NASA uses on orbit: assess with a defined check, take the listed action, then hand over to the flight surgeon. CREW CHECK follows that order instead of inventing one.',
+      url: null
+    },
+    {
+      name: 'ISS Daily Health Report practice',
+      detail: 'A short, repeated self-report at a fixed point in the day. Trend change across checks is the early-warning signal, which is why the record carries a chart and a preflight baseline.',
+      url: null
+    },
+    {
+      name: 'NASA Open Science Data Repository (OSDR)',
+      detail: 'Source of the published Inspiration4 blood panels in the reference section. Only released values are shown, and every excluded cell is labelled.',
+      url: 'https://science.nasa.gov/osdr/'
+    },
+    {
+      name: 'Exploration Medical Capability and the Integrated Medical Model',
+      detail: 'NASA Human Research Program work on medical risk for exploration missions. It is why a missing reading is reported as no data rather than as a normal result, and why every escalation ends with the flight surgeon.',
+      url: null
+    }
+  ];
+
 
 
   var state = {
@@ -1744,7 +1780,26 @@
           ' days \u2014 the actual flight duration, not the day offset of a follow-up sample.</p>' +
         '<p class="muted small">Source: <a href="' + esc(I4.meta.page) + '" target="_blank" rel="noopener">' +
           esc(I4.meta.page) + '</a> \u00b7 snapshot ' + esc(I4.meta.generated) + '</p>' +
-      '</div>';
+      '</div>' +
+      standardsCard();
+  }
+
+  function standardsCard() {
+    return '<div class="card">' +
+      '<h4>NASA tools and standards this follows</h4>' +
+      '<p class="card-lede">CREW CHECK is aligned to the instruments and standards NASA uses for crew health. ' +
+        'It is not certified by NASA and it is not a medical device. Every escalation ends with the flight surgeon.</p>' +
+      '<ul class="standard-list">' +
+        NASA_STANDARDS.map(function (s) {
+          var name = s.url
+            ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.name) + '</a>'
+            : esc(s.name);
+          return '<li><strong>' + name + '</strong><span>' + esc(s.detail) + '</span></li>';
+        }).join('') +
+      '</ul>' +
+      '<p class="muted small">What this tool is not: a simulator, a training scenario, or a source of invented readings. ' +
+        'Every number shown is either entered by the crew member or comes from a labelled published dataset.</p>' +
+    '</div>';
   }
 
 
