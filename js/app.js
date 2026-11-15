@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — app.js
+   ASTROGUARD — app.js
    Controller: builds the check-in form, runs the scoring engine on
    every edit, and paints the body map, trends, action plan and log.
    ============================================================ */
@@ -503,7 +503,7 @@
   var aiObservations = [];
   var geminiScenario;
   var geminiPending = false;
-  var programFallback = 'Using CREW CHECK’s rule-based guidance above.';
+  var programFallback = 'Using ASTROGUARD’s rule-based guidance above.';
 
   function setGeminiScenario(detection, suggestion) {
     var inSimulator = state.mode === 'simulator';
@@ -617,7 +617,7 @@
       help.open = true;
     } else if (!navigator.gpu) {
       $('#runLocalAI').disabled = true;
-      status.textContent = 'WebGPU is unavailable. Open CREW CHECK in a WebGPU-enabled browser with hardware acceleration.';
+      status.textContent = 'WebGPU is unavailable. Open ASTROGUARD in a WebGPU-enabled browser with hardware acceleration.';
       help.open = true;
     } else if (assets.ready) {
       status.textContent = 'On localhost, prepare the model files before the first use.';

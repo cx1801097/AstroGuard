@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — scoring.js
+   ASTROGUARD — scoring.js
    Transparent rule engine: metric band -> system severity ->
    overall readiness -> GO / CAUTION / NO-GO.
 

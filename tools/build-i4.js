@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ============================================================
-   CREW CHECK — build the Inspiration4 mission dataset
+   ASTROGUARD — build the Inspiration4 mission dataset
    ------------------------------------------------------------
    Reads the raw, unmodified NASA OSDR extracts in data/i4/raw/
    and emits data/i4/i4-missions.js in the console's mission format.

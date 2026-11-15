@@ -15,7 +15,7 @@ exit /b 0
 
 :failed
 echo.
-echo CREW CHECK could not start. See the error above. Existing model files can be reused.
+echo ASTROGUARD could not start. See the error above. Existing model files can be reused.
 pause
 popd
 exit /b 1

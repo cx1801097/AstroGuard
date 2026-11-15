@@ -197,8 +197,8 @@
     const { priority } = guidance(assessment.severity);
     if (!priority) return '';
     const heading = assessment.source === 'measured'
-      ? 'CREW CHECK | Draft for crew review'
-      : 'CREW CHECK | Demonstration or unverified data — do not use for operational reporting';
+      ? 'ASTROGUARD | Draft for crew review'
+      : 'ASTROGUARD | Demonstration or unverified data — do not use for operational reporting';
     return [
       heading,
       priority,

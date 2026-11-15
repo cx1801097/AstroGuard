@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — sample-mission.js
+   ASTROGUARD — sample-mission.js
    A deterministic 30-day demonstration mission so the console has
    something to plot before real crew data exists.
 

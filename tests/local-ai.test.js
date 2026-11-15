@@ -11,7 +11,7 @@ test('offline launch uses only local runtime, model weights and WebAssembly URLs
   });
   assert.equal(modelAssets('http://127.0.0.1:8080/').weights, 'http://127.0.0.1:8080/ai-assets/model/resolve/local/');
   assert.equal(modelAssets('https://cx1801097.github.io/NasaSpaceAppChallangeCCC/'), model);
-  assert.equal(modelAssets('file:///C:/CREW-CHECK.html'), null);
+  assert.equal(modelAssets('file:///C:/ASTROGUARD.html'), null);
   assert.equal(modelAssets('http://example.test/'), null);
 });
 

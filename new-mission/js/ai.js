@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — ai.js
+   ASTROGUARD — ai.js
    Optional assistant layer: one scoped question channel and one
    second-opinion request.
 

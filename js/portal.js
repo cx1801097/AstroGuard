@@ -2,7 +2,7 @@
   'use strict';
 
   const byId = id => document.getElementById(id);
-  const recordingKey = 'crewcheck.wearable.heart-rate.v1';
+  const recordingKey = 'astroguard.wearable.heart-rate.v1';
   const maxReadings = 5000;
   const freshnessMs = 15000;
   const milestones = [
@@ -86,7 +86,7 @@
       if (!frame.contentWindow) return;
       const origin = location.protocol === 'file:' ? '*' : location.origin;
       show('missionConsole');
-      frame.contentWindow.postMessage({ type: 'crewcheck:wearable-reading', sample }, origin);
+      frame.contentWindow.postMessage({ type: 'astroguard:wearable-reading', sample }, origin);
     }
 
     function showReplay() {
@@ -334,7 +334,7 @@
       const url = URL.createObjectURL(new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'crew-check-wearable-readings.json';
+      link.download = 'astroguard-wearable-readings.json';
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });

@@ -1,6 +1,8 @@
-# CREW CHECK — I4 Offline Build
+# AstroGuard
 
-Standalone, fully offline build of the CREW CHECK in-flight health self-assessment
+An offline in-flight health self-assessment console for long-duration space missions, with the Inspiration4 (I4) mission playback included.
+
+Standalone, fully offline build of the AstroGuard in-flight health self-assessment
 console, with the Inspiration4 (I4) mission playback included.
 
 > **Not a medical device.** Rule-based decision support for a prototype; every
@@ -23,7 +25,7 @@ environment feed described under **Live environment data**.
 
 | Path | What it is |
 |---|---|
-| `index.html` | CREW CHECK home screen. Opens the dashboard, the I4 playback, the mission console and the wearable import. |
+| `index.html` | ASTROGUARD home screen. Opens the dashboard, the I4 playback, the mission console and the wearable import. |
 | `new-mission/` | The crew-operated mission console, embedded by the home screen in an iframe. See `new-mission/UPSTREAM.md`. |
 | `js/` | Application logic for the portal, the mission console and the analyzers. |
 | `css/` | Styling for both screens. |
@@ -78,6 +80,20 @@ cited in `data/i4/SOURCE.md`, along with the rebuild command for
 The dataset is a labelled reference for expectation-setting only. It is never
 scored into a crew member's own assessment, and vitals that were never released
 for the mission are reported as no data rather than estimated.
+
+## Branch map
+
+| Branch | Commit | What it holds |
+|---|---|---|
+| `main` | — | Release branch. Everything below is merged here in the order listed. |
+| `feat/scoring-baseline` | `feat: score against the crew member's own preflight baseline` | Personal preflight baseline and change detection. Two independent judgements per reading — the clinical band for the population and change against this crew member's own median — keeping the worse of the two. Expanded indicator catalogue with every visible label spelled out in full. Version 2 record holding the per-flight mission profile: destination, planned duration, crew size, communication delay, sleep target, instrument groups. The generated demo record is deliberately not imported, so no invented readings can enter a real crew member's record. Sleep debt and flight exposure scale with the mission profile. |
+| `feat/checkin-console` | `feat: crew-operated check-in console` | The console rebuilt around the crew member as the operator: enter your own readings, get a verdict with specific actions, confirm anything about to be escalated, produce a handover report that stands alone in a delayed communication loop. The generated demo mission is deleted — nothing on screen is a simulation. Mission tab carries the per-flight configuration; the check-in form follows the instrument groups that vehicle actually carries. Flight day numbering starts at flight day 1, driven by the launch date. |
+| `feat/ai-assistant` | `feat: scoped mission-health assistant on free models` | The Assistant tab: one mission-health question at a time, answered from the check on screen, plus a second opinion on that check. Scope enforced at three layers — the client sends only two request shapes and never any conversation history, the server holds two locked prompts that treat the crew note and the question as untrusted data, and every response is validated against a fixed schema before rendering. Free models only, sized per request, with cooldown and automatic fallback. The credential lives in a gitignored `.env.local` read only by the server; the browser never sees it. |
+| `feat/i4-reference` | `feat: NASA Inspiration4 reference dataset and builder` | Published Inspiration4 blood panels from the NASA Open Science Data Repository, as a clearly labelled reference section. Only the analytes NASA actually measured are carried through; the six cells excluded by the repository's own quality flags are surfaced with their reason. Microgravity exposure uses the actual flight duration from the study metadata. The raw transformed extracts are committed on purpose so the dataset can be rebuilt and checked. |
+| `feat/nasa-standards` | `feat: cite the NASA tools and standards this tool follows` | The Reference tab names the real NASA instruments and standards the tool is aligned to, and what each one contributed: NASA-STD-3001 for crew health, sleep, exercise and radiation limits; the Human Research Program's five hazards for the risk frame behind the eight body systems; the International Space Station Medical Checklist for the assess, act, hand over sequence; ISS Daily Health Report practice for the repeated short self-report; the Open Science Data Repository for the published panels; Exploration Medical Capability and the Integrated Medical Model for treating a missing reading as no data. States plainly that this is not a simulator and not certified by NASA. |
+| `docs/branch-map` | `docs: replace the readme with the branch map` | The branch map itself. |
+| `fix/assistant-availability` | `fix: make the assistant reachable, recoverable and honest` | Makes the assistant usable. The Assistant tab now explains that a static host cannot run the credential proxy, and how to start it locally, instead of leaving a dead Ask button. The router sweeps up to five candidates then makes a second pass, the client makes one transparent retry with its own timeout, a thinking indicator shows while a reply is in flight, and the daily free-model quota is detected and named so the crew member knows it is a quota and not a fault in the tool. |
+| `chore/rename-astrogurad` | `chore: rename the project to AstroGuard` | The rename. The brand, the page titles, the handover report, the footer, the assistant prompts, the exported filenames, the launcher scripts and the saved record key all move to AstroGuard. A record saved under the previous key is adopted on first run rather than discarded, so a rename never erases a crew member's own readings. |
 
 ## Upstream
 

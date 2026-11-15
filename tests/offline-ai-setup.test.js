@@ -7,7 +7,7 @@ const test = require('node:test');
 const { model } = require('../js/local-ai');
 
 test('preparing a complete model directory exits without making a download', () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-check-ai-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'astroguard-ai-'));
   try {
     const files = {
       'ai-assets/ready.json': JSON.stringify({

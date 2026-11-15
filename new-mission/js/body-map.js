@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — body-map.js
+   ASTROGUARD — body-map.js
    Schematic astronaut figure with clickable system hotspots.
    Pure inline SVG so it works offline and stays crisp.
    ============================================================ */

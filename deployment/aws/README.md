@@ -1,16 +1,16 @@
-# Deploy the CREW CHECK demo review
+# Deploy the ASTROGUARD demo review
 
 Keep the website on GitHub Pages. The Lambda endpoint handles simulated
 finding categories and uses its AWS role to call Amazon Nova Micro in Sydney.
 The health monitor and Crew Suggestion work while the endpoint is unavailable.
 
 In AWS CloudShell, select **Asia Pacific (Sydney)** and upload
-`CREW-CHECK-Lambda.zip` using **Actions → Upload file**. Run:
+`ASTROGUARD-Lambda.zip` using **Actions → Upload file**. Run:
 
 ```sh
-unzip -o CREW-CHECK-Lambda.zip -d crew-check-lambda
-cd crew-check-lambda
-sam deploy --template-file template.yml --stack-name crew-check-ai-demo --region ap-southeast-2 --resolve-s3 --capabilities CAPABILITY_IAM
+unzip -o ASTROGUARD-Lambda.zip -d astroguard-lambda
+cd astroguard-lambda
+sam deploy --template-file template.yml --stack-name astroguard-ai-demo --region ap-southeast-2 --resolve-s3 --capabilities CAPABILITY_IAM
 ```
 
 The AWS identity deploying the stack needs permission to create the stack's

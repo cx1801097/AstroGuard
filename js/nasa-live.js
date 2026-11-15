@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — nasa-live.js
+   ASTROGUARD — nasa-live.js
    Live ground context from NASA open APIs:
      NASA POWER — satellite-derived surface conditions for any point
      NASA EONET — natural events seen from space, posted as they happen
@@ -23,8 +23,8 @@
   const POWER_HOURLY = 'https://power.larc.nasa.gov/api/temporal/hourly/point';
   const EONET_EVENTS = 'https://eonet.gsfc.nasa.gov/api/v3/events';
   const MISSING = -999;
-  const CACHE_KEY = 'crewcheck.nasa-live.v1';
-  const SITE_KEY = 'crewcheck.nasa-live.site.v1';
+  const CACHE_KEY = 'astroguard.nasa-live.v1';
+  const SITE_KEY = 'astroguard.nasa-live.site.v1';
   const REFRESH_MS = 5 * 60 * 1000;
   const TIMEOUT_MS = 12000;
   const STALE_MS = 10 * 60 * 1000;

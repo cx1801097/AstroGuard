@@ -45,7 +45,7 @@ function createEvidenceHandler(databasePath) {
       res.end(JSON.stringify(body));
     }
     if (!localRequest(req)) {
-      return reply(403, { error: 'Evidence is available from the local CREW CHECK app.' });
+      return reply(403, { error: 'Evidence is available from the local ASTROGUARD app.' });
     }
     if (req.method !== 'GET') return reply(405, { error: 'Use GET.' });
     const severity = new URLSearchParams(req.url.split('?')[1]).get('severity');

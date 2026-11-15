@@ -91,10 +91,10 @@ function createGeminiHandler({ apiKey, fetcher, now = Date.now, review = analyze
     const host = req.headers.host || '';
     if (!local || !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host) ||
         req.headers.origin !== 'http://' + host) {
-      return reply(403, { error: 'Cloud review is available only from this computer’s CREW CHECK server.' });
+      return reply(403, { error: 'Cloud review is available only from this computer’s ASTROGUARD server.' });
     }
     if (req.method !== 'POST') return reply(405, { error: 'Use POST.' });
-    if (!enabled) return reply(503, { error: 'Start CREW CHECK with a Bedrock or Gemini launcher to enable cloud AI.' });
+    if (!enabled) return reply(503, { error: 'Start ASTROGUARD with a Bedrock or Gemini launcher to enable cloud AI.' });
     if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) return reply(415, { error: 'Expected JSON.' });
     let bytes = 0;
     const chunks = [];

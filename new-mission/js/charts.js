@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — charts.js
+   ASTROGUARD — charts.js
    Hand-rolled SVG charts. No Chart.js / D3 / CDN, because the
    console has to render with zero network access.
    ============================================================ */

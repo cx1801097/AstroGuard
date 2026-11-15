@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: CREW CHECK simulated scenario review with an atomic daily Bedrock cap
+Description: ASTROGUARD simulated scenario review with an atomic daily Bedrock cap
 Parameters:
   DailyLimit:
     Type: Number

@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — storage.js
+   ASTROGUARD — storage.js
    The crew member's own record: identity, personal preflight
    baseline, and every check they have run.
 
@@ -15,9 +15,15 @@
 window.CC_STORAGE = (function () {
   'use strict';
 
-  var KEY = 'crewcheck.record.v2';
+  var KEY = 'astroguard.record.v2';
   var VERSION = 2;
   var LEGACY_KEY = 'crewcheck.mission.v1';
+
+  /* The project was renamed from CREW CHECK to ASTROGUARD. A record
+     saved under the old key belongs to the same crew member, so it is
+     adopted rather than discarded: a rename must never erase a crew
+     member's own readings. */
+  var PRIOR_KEY = 'crewcheck.record.v2';
   var RESOURCE_FIELDS = [
     ['identifier', 'Mission ID', 48],
     ['vehicle', 'Spacecraft type or model', 80],
@@ -191,8 +197,25 @@ window.CC_STORAGE = (function () {
   function load() {
     var text = null;
     try { text = window.localStorage.getItem(KEY); } catch (e) { /* private mode / file:// */ }
+    if (!text) {
+      /* First run after the rename: adopt the record saved under the
+         previous key, if there is one. */
+      text = adoptPriorRecord();
+    }
     if (!text) return null;
     return migrate(safeParse(text));
+  }
+
+  /** Move a record saved under the pre-rename key onto the new one. */
+  function adoptPriorRecord() {
+    var prior = null;
+    try { prior = window.localStorage.getItem(PRIOR_KEY); } catch (e) { return null; }
+    if (!prior) return null;
+    try {
+      window.localStorage.setItem(KEY, prior);
+      window.localStorage.removeItem(PRIOR_KEY);
+    } catch (e) { /* ignore */ }
+    return prior;
   }
 
   function save(record) {
@@ -233,7 +256,7 @@ window.CC_STORAGE = (function () {
     var a = document.createElement('a');
     var who = (record.crewId || 'crew').replace(/[^A-Za-z0-9_-]+/g, '-');
     a.href = url;
-    a.download = 'crewcheck-' + who + '-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.download = 'astroguard-' + who + '-' + new Date().toISOString().slice(0, 10) + '.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

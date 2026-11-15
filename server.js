@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — tiny static server (optional)
+   ASTROGUARD — tiny static server (optional)
    The console runs fine from file://, but a local server gives
    consistent localStorage behaviour and lets a teammate on the
    same network open the console to review a mission log.
@@ -18,7 +18,7 @@ const args = process.argv.slice(2);
 const openBrowser = args.includes('--open');
 const PORT = Number(args.find(arg => arg !== '--open') || process.env.PORT || 8080);
 const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK?.trim();
-const useIam = process.env.CREW_CHECK_BEDROCK_IAM === '1';
+const useIam = process.env.ASTROGUARD_BEDROCK_IAM === '1';
 let cloudOptions = { apiKey: process.env.GEMINI_API_KEY };
 if (useIam) {
   cloudOptions = {
@@ -89,8 +89,12 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const appAsset = /^\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/(?:sample-mission|i4-replay|cloud-ai-config)\.js)$/;
-  const missionAsset = /^\/new-mission\/(?:index\.html|css\/style\.css|js\/[a-z-]+\.js|data\/i4\/i4-missions\.js)$/;
+  /* The allowlist is what the local server will hand out. It has to
+     cover every script the pages actually load, or the console opens
+     with silent 404s and a half-built screen. The patterns below
+     name the current set; a new asset must be added here too. */
+  const appAsset = /^\/(?:index\.html|css\/style\.css|js\/[a-z0-9-]+\.js|data\/(?:sample-mission|i4-replay|i4-offline|cloud-ai-config|astroguard-evidence)\.js)$/;
+  const missionAsset = /^\/new-mission\/(?:index\.html|css\/style\.css|js\/[a-z0-9-]+\.js|data\/i4\/i4-missions\.js)$/;
   if (!appAsset.test(rel) && !missionAsset.test(rel)) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not found');
@@ -113,13 +117,13 @@ const server = http.createServer((req, res) => {
 
 server.on('error', error => {
   if (error.code !== 'EADDRINUSE') throw error;
-  console.error('Port ' + PORT + ' is already in use. Close the previous CREW CHECK server and retry.');
+  console.error('Port ' + PORT + ' is already in use. Close the previous ASTROGUARD server and retry.');
   process.exitCode = 1;
 });
 
 server.listen(PORT, openBrowser ? 'localhost' : undefined, () => {
   const address = 'http://localhost:' + server.address().port + '/';
-  console.log('CREW CHECK serving ' + ROOT);
+  console.log('ASTROGUARD serving ' + ROOT);
   console.log('  ' + address);
   if (openBrowser && process.platform === 'win32') {
     const browserEnvironment = { ...process.env };

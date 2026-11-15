@@ -14,7 +14,7 @@ function createHandler({ reserve, review }) {
   return async function handle(event) {
     if (event.rawPath !== '/') return reply(404, { error: 'Not found.' });
     if (event.requestContext?.http?.method !== 'POST') return reply(405, { error: 'Use POST.' });
-    if (event.headers?.origin !== ORIGIN) return reply(403, { error: 'Use the CREW CHECK demo to request a review.' });
+    if (event.headers?.origin !== ORIGIN) return reply(403, { error: 'Use the ASTROGUARD demo to request a review.' });
     if (!/^application\/json(?:\s*;|$)/i.test(event.headers['content-type'] || '')) {
       return reply(415, { error: 'Expected JSON.' });
     }

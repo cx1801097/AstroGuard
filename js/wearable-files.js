@@ -37,7 +37,7 @@
 
   function parseJson(text) {
     const rows = JSON.parse(text);
-    if (!Array.isArray(rows)) throw new Error('Use a CREW CHECK readings JSON export.');
+    if (!Array.isArray(rows)) throw new Error('Use a ASTROGUARD readings JSON export.');
     return rows.map(row => row && Object.hasOwn(units, row.metric) && row.unit === units[row.metric]
       ? sample(row.metric, row.value, row.timestamp, providers.includes(row.provider) ? row.provider : 'json')
       : null);

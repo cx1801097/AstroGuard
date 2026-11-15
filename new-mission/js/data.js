@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — data.js
+   ASTROGUARD — data.js
    Indicator catalogue, clinical bands, baseline delta rules,
    body systems and countermeasures.
 

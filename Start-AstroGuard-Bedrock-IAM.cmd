@@ -11,9 +11,9 @@ if not exist "node_modules\@aws-sdk\client-bedrock-runtime\package.json" (
   call npm.cmd ci --ignore-scripts --no-audit --no-fund
   if errorlevel 1 goto failed
 )
-set "CREW_CHECK_BEDROCK_IAM=1"
+set "ASTROGUARD_BEDROCK_IAM=1"
 set "AWS_BEARER_TOKEN_BEDROCK="
-echo CREW CHECK Bedrock IAM opens at http://localhost:8092/ once the server starts.
+echo ASTROGUARD Bedrock IAM opens at http://localhost:8092/ once the server starts.
 node server.js 8092 --open
 if errorlevel 1 goto failed
 popd

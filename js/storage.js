@@ -1,5 +1,5 @@
 /* ============================================================
-   CREW CHECK — storage.js
+   ASTROGUARD — storage.js
    Mission log persistence. localStorage for the running console,
    plain-JSON export/import so a crew member (or a teammate) can
    carry the record off the device. No network, ever.
@@ -7,8 +7,14 @@
 window.CC_STORAGE = (function () {
   'use strict';
 
-  var KEY = 'crewcheck.mission.v1';
+  var KEY = 'astroguard.mission.v1';
   var VERSION = 1;
+
+  /* The project was renamed from CREW CHECK to ASTROGUARD. Mission
+     logs saved under the old key belong to the same crew member, so
+     they are moved rather than discarded: a rename must never erase a
+     crew member's own readings. */
+  var PRIOR_KEY = 'crewcheck.mission.v1';
 
   function emptyMission() {
     return {
@@ -60,10 +66,23 @@ window.CC_STORAGE = (function () {
   function listMissions() {
     try {
       var prefix = keyFor('mission-');
-      return Object.keys(window.localStorage).filter(function (key) {
-        return key.startsWith(prefix);
+      /* Logs saved under the pre-rename key are listed too, so a
+         crew member's own logs remain visible on the first run after
+         the rename. load() moves them onto the new key. */
+      var priorPrefix = PRIOR_KEY + '.mission-';
+      var scopes = Object.keys(window.localStorage).filter(function (key) {
+        return key.startsWith(prefix) || key.startsWith(priorPrefix);
       }).map(function (key) {
-        var scope = key.slice(KEY.length + 1);
+        return key.startsWith(prefix)
+          ? key.slice(KEY.length + 1)
+          : key.slice(PRIOR_KEY.length + 1);
+      });
+      var seen = {};
+      return scopes.filter(function (scope) {
+        if (seen[scope]) return false;
+        seen[scope] = true;
+        return true;
+      }).map(function (scope) {
         return { scope: scope, mission: load(scope) };
       }).filter(function (entry) { return entry.mission; });
     } catch (e) {
@@ -74,8 +93,25 @@ window.CC_STORAGE = (function () {
   function load(scope) {
     var text = null;
     try { text = window.localStorage.getItem(keyFor(scope)); } catch (e) { /* private mode / file:// */ }
+    if (!text) {
+      /* First run after the rename: adopt the log saved under the
+         previous key, if there is one. */
+      text = adoptPrior(scope);
+    }
     if (!text) return null;
     return migrate(safeParse(text));
+  }
+
+  /** Move a log saved under the pre-rename key onto the new one. */
+  function adoptPrior(scope) {
+    var prior = null;
+    try { prior = window.localStorage.getItem(PRIOR_KEY + (scope ? '.' + scope : '')); } catch (e) { return null; }
+    if (!prior) return null;
+    try {
+      window.localStorage.setItem(keyFor(scope), prior);
+      window.localStorage.removeItem(PRIOR_KEY + (scope ? '.' + scope : ''));
+    } catch (e) { /* ignore */ }
+    return prior;
   }
 
   function save(mission, scope) {
@@ -109,7 +145,7 @@ window.CC_STORAGE = (function () {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'crewcheck-mission-fd' + mission.flightDay + '.json';
+    a.download = 'astroguard-mission-fd' + mission.flightDay + '.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

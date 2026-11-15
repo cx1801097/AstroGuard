@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="CREW CHECK — in-flight health self-assessment console for long-duration space missions.">
-<title>CREW CHECK — In-Flight Health Console</title>
+<meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
+<title>ASTROGUARD — In-Flight Health Console</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <main id="portal" class="portal">
   <section id="homeView" class="portal-view">
-    <h1>CREW CHECK</h1>
+    <h1>ASTROGUARD</h1>
     <p>Review crew health, spot changes in vital signs, and prepare a check-in for ground review.</p>
     <div class="portal-options">
       <button type="button" class="card portal-option" data-open="simulator"><strong>Health Monitoring System</strong><span>Explore the dashboard with a simulated mission.</span></button>
@@ -29,7 +29,7 @@
       <button type="button" class="btn" data-open="mission">Previous mission setup and saved records</button>
     </nav>
     <h1>New mission</h1>
-    <iframe id="missionConsoleFrame" title="CREW CHECK mission console" data-src="new-mission/index.html"></iframe>
+    <iframe id="missionConsoleFrame" title="ASTROGUARD mission console" data-src="new-mission/index.html"></iframe>
   </section>
   <section id="missionView" class="portal-view" hidden>
     <button type="button" class="btn" data-open="home">Home</button>
@@ -97,7 +97,7 @@
     </div>
     <div class="card">
       <h2>Import watch readings</h2>
-      <p>Choose Apple Health export.xml, a TCX activity with heart-rate samples, or a compatible CSV or CREW CHECK JSON file. Extract the file from its ZIP first.</p>
+      <p>Choose Apple Health export.xml, a TCX activity with heart-rate samples, or a compatible CSV or ASTROGUARD JSON file. Extract the file from its ZIP first.</p>
       <details>
         <summary>Which file should I use?</summary>
         <ul>
@@ -154,7 +154,7 @@
       <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13"/><path d="M10 16h12M16 10v12"/></svg>
     </div>
     <div class="brand-text">
-      <h1>CREW&nbsp;CHECK</h1>
+      <h1>ASTROGUARD</h1>
       <p>In-flight health self-assessment</p>
     </div>
   </div>
@@ -333,7 +333,7 @@
         <h4>What to review next</h4>
         <p id="i4PlanNext"></p>
         <h4>AI review</h4>
-        <p>Historical records stay in replay. Using CREW CHECK’s rule-based assessment and the offline replay notes.</p>
+        <p>Historical records stay in replay. Using ASTROGUARD’s rule-based assessment and the offline replay notes.</p>
         <p class="muted">Historical replay for demonstration. Follow mission-approved procedures for an active crew check.</p>
       </section>
       <section id="i4Hazards" class="i4-overview card" hidden aria-labelledby="i4HazardsTitle">
@@ -405,7 +405,7 @@
             <div id="optionalAiControls">
             <div id="geminiReview">
               <h4>AI review</h4>
-              <p id="geminiStatus" role="status">Using CREW CHECK’s rule-based guidance above.</p>
+              <p id="geminiStatus" role="status">Using ASTROGUARD’s rule-based guidance above.</p>
               <button type="button" id="runGemini" class="btn btn-primary" disabled>Analyze mission with AI</button>
               <ol id="geminiFindings" hidden></ol>
               <p id="geminiClarification" hidden></p>
@@ -416,10 +416,10 @@
             <p id="localAIStatus" role="status">Qwen3 runs on this device. First use on the web downloads about 2.3 GB.</p>
             <details id="localAIHelp">
               <summary>How to start local AI</summary>
-              <p>On Windows, double-click <strong>Start-Crew-Check.cmd</strong> in the extracted project folder. It downloads missing files, starts the server, and opens your browser.</p>
+              <p>On Windows, double-click <strong>Start-AstroGuard.cmd</strong> in the extracted project folder. It downloads missing files, starts the server, and opens your browser.</p>
               <p>Manual setup:</p>
               <ol>
-                <li>Open a terminal in the extracted CREW CHECK project folder.</li>
+                <li>Open a terminal in the extracted ASTROGUARD project folder.</li>
                 <li>While online, run <code>node scripts/prepare-offline-ai.js</code> and wait for “Offline assets ready.”</li>
                 <li>Run <code>node server.js</code> and leave the terminal open.</li>
                 <li>Open <a href="http://localhost:8080/">http://localhost:8080/</a> in a WebGPU-enabled browser, then choose <strong>Health Monitoring System → Action plan → Highlight with local AI</strong>.</li>
@@ -500,7 +500,7 @@
 </div>
 
 <footer class="footer">
-  <span>CREW CHECK · prototype built for the NASA Space Apps Challenge · rule-based decision support, <strong>not a medical device</strong></span>
+  <span>ASTROGUARD · prototype built for the NASA Space Apps Challenge · rule-based decision support, <strong>not a medical device</strong></span>
   <span class="muted">Offline-capable · no network required</span>
 </footer>
 
