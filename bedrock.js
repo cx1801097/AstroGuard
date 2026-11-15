@@ -4,6 +4,46 @@ const { validateReview } = require('./gemini');
 const MODEL = 'amazon.nova-micro-v1:0';
 const PROVIDER = 'Amazon Bedrock';
 
+function converseInput(input) {
+  return {
+    system: [{ text: 'Review a simulated astronaut check-in. Sort up to three existing findings, with chest pain first, then alerts, then missing data. Choose one clarification from questions. Return a JSON object only, with priority (an array of one to three finding ID strings) and clarification (one question ID string). Do not add findings, change severity, diagnose or prescribe.' }],
+    messages: [{ role: 'user', content: [{ text: JSON.stringify({
+      ...input, findings: input.findings.map((finding, index) => ({ id: String(index), ...finding }))
+    }) }] }],
+    inferenceConfig: { maxTokens: 120, temperature: 0 }
+  };
+}
+
+function readReview(input, response) {
+  const content = response.output?.message?.content;
+  const answer = content?.map(block => block.text || '').join('').trim();
+  const json = answer?.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? answer;
+  return validateReview(input, JSON.parse(json || 'null'), MODEL, PROVIDER);
+}
+
+function createIamBedrockReview(region, { BedrockRuntimeClient, ConverseCommand }) {
+  const client = new BedrockRuntimeClient({ region, maxAttempts: 1, authSchemePreference: ['sigv4'] });
+  return async function review(input) {
+    let response;
+    try {
+      response = await client.send(new ConverseCommand({ modelId: MODEL, ...converseInput(input) }), {
+        abortSignal: AbortSignal.timeout(18000)
+      });
+    } catch (error) {
+      if (error.name === 'CredentialsProviderError' || error.name === 'ExpiredTokenException') {
+        return { upstreamStatus: 503, upstreamMessage: 'AWS credentials are unavailable or expired. Sign in to your AWS profile or check the role attached to this server.' };
+      }
+      const upstreamStatus = error.$metadata?.httpStatusCode;
+      if (upstreamStatus === 403) {
+        return { upstreamStatus, upstreamMessage: 'AWS denied IAM access in ' + region + '. Check bedrock:InvokeModel permission for Amazon Nova Micro.' };
+      }
+      if (upstreamStatus) return { upstreamStatus };
+      throw error;
+    }
+    return readReview(input, response);
+  };
+}
+
 async function accessDeniedMessage(response, region) {
   const error = await response.json().catch(() => null);
   const details = String(error?.message ?? error?.Message ?? '');
@@ -32,25 +72,15 @@ function createBedrockReview(region = 'us-east-1') {
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
         signal: AbortSignal.timeout(18000),
         redirect: 'error',
-        body: JSON.stringify({
-          system: [{ text: 'Review a simulated astronaut check-in. Sort up to three existing findings, with chest pain first, then alerts, then missing data. Choose one clarification from questions. Return a JSON object only, with priority (an array of one to three finding ID strings) and clarification (one question ID string). Do not add findings, change severity, diagnose or prescribe.' }],
-          messages: [{ role: 'user', content: [{ text: JSON.stringify({
-            ...input, findings: input.findings.map((finding, index) => ({ id: String(index), ...finding }))
-          }) }] }],
-          inferenceConfig: { maxTokens: 120, temperature: 0 }
-        })
+        body: JSON.stringify(converseInput(input))
       }
     );
     if (upstream.status === 403) {
       return { upstreamStatus: 403, upstreamMessage: await accessDeniedMessage(upstream, region) };
     }
     if (!upstream.ok) return { upstreamStatus: upstream.status };
-    const response = await upstream.json();
-    const content = response.output?.message?.content;
-    const answer = content?.map(block => block.text || '').join('').trim();
-    const json = answer?.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? answer;
-    return validateReview(input, JSON.parse(json || 'null'), MODEL, PROVIDER);
+    return readReview(input, await upstream.json());
   };
 }
 
-module.exports = { createBedrockReview, PROVIDER };
+module.exports = { createBedrockReview, createIamBedrockReview, PROVIDER };

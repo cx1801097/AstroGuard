@@ -79,7 +79,7 @@ function validateReview(input, result, model, provider) {
   return { model, priority, clarification: clarifications[result.clarification] };
 }
 
-function createGeminiHandler({ apiKey, fetcher, now = Date.now, review = analyzeScenario, provider = 'Gemini' } = {}) {
+function createGeminiHandler({ apiKey, fetcher, now = Date.now, review = analyzeScenario, provider = 'Gemini', enabled = Boolean(apiKey) } = {}) {
   let calls = [];
   let running = false;
   return async function handleGemini(req, res) {
@@ -94,7 +94,7 @@ function createGeminiHandler({ apiKey, fetcher, now = Date.now, review = analyze
       return reply(403, { error: 'Cloud review is available only from this computer’s CREW CHECK server.' });
     }
     if (req.method !== 'POST') return reply(405, { error: 'Use POST.' });
-    if (!apiKey) return reply(503, { error: 'Start CREW CHECK with the Bedrock or Gemini launcher and enter your API key.' });
+    if (!enabled) return reply(503, { error: 'Start CREW CHECK with a Bedrock or Gemini launcher to enable cloud AI.' });
     if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) return reply(415, { error: 'Expected JSON.' });
     let bytes = 0;
     const chunks = [];

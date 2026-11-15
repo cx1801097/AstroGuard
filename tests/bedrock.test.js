@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { scenario } = require('../gemini');
-const { createBedrockReview } = require('../bedrock');
+const { createBedrockReview, createIamBedrockReview } = require('../bedrock');
 
 const input = scenario({
   source: 'simulated',
@@ -48,4 +48,25 @@ test('Bedrock explains a key Region mismatch without exposing upstream details',
   assert.equal(result.upstreamStatus, 403);
   assert.match(result.upstreamMessage, /us-east-1.*Region where your Bedrock API key was generated/);
   assert.doesNotMatch(result.upstreamMessage, /Private upstream details/);
+});
+
+test('IAM mode invokes Converse without explicit credentials and validates its reply', async () => {
+  class ConverseCommand {
+    constructor(input) { this.input = input; }
+  }
+  class BedrockRuntimeClient {
+    constructor(config) {
+      assert.deepEqual(config, { region: 'ap-southeast-2', maxAttempts: 1, authSchemePreference: ['sigv4'] });
+    }
+    async send(command, options) {
+      assert.equal(command.input.modelId, 'amazon.nova-micro-v1:0');
+      assert.equal(options.abortSignal.aborted, false);
+      assert.deepEqual(JSON.parse(command.input.messages[0].content[0].text).findings, [
+        { id: '0', kind: 'alert', metric: 'spo2' }, { id: '1', kind: 'chest_pain' }
+      ]);
+      return { output: { message: { content: [{ text: '{"priority":["0"],"clarification":"none"}' }] } } };
+    }
+  }
+  const review = createIamBedrockReview('ap-southeast-2', { BedrockRuntimeClient, ConverseCommand });
+  assert.deepEqual((await review(input)).priority, [1, 0]);
 });

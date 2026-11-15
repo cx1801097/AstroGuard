@@ -11,18 +11,30 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('node:child_process');
 const { createGeminiHandler } = require('./gemini');
-const { createBedrockReview, PROVIDER } = require('./bedrock');
+const { createBedrockReview, createIamBedrockReview, PROVIDER } = require('./bedrock');
 
 const ROOT = __dirname;
 const args = process.argv.slice(2);
 const openBrowser = args.includes('--open');
 const PORT = Number(args.find(arg => arg !== '--open') || process.env.PORT || 8080);
 const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK?.trim();
-const handleCloudReview = createGeminiHandler(bedrockKey ? {
-  apiKey: bedrockKey,
-  provider: PROVIDER,
-  review: createBedrockReview(process.env.AWS_REGION || 'us-east-1')
-} : { apiKey: process.env.GEMINI_API_KEY });
+const useIam = process.env.CREW_CHECK_BEDROCK_IAM === '1';
+let cloudOptions = { apiKey: process.env.GEMINI_API_KEY };
+if (useIam) {
+  cloudOptions = {
+    enabled: true,
+    provider: PROVIDER,
+    review: createIamBedrockReview(process.env.AWS_REGION || 'ap-southeast-2',
+      require('@aws-sdk/client-bedrock-runtime'))
+  };
+} else if (bedrockKey) {
+  cloudOptions = {
+    apiKey: bedrockKey,
+    provider: PROVIDER,
+    review: createBedrockReview(process.env.AWS_REGION || 'us-east-1')
+  };
+}
+const handleCloudReview = createGeminiHandler(cloudOptions);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -113,6 +125,10 @@ server.listen(PORT, openBrowser ? 'localhost' : undefined, () => {
     const browserEnvironment = { ...process.env };
     delete browserEnvironment.GEMINI_API_KEY;
     delete browserEnvironment.AWS_BEARER_TOKEN_BEDROCK;
+    delete browserEnvironment.AWS_ACCESS_KEY_ID;
+    delete browserEnvironment.AWS_SECRET_ACCESS_KEY;
+    delete browserEnvironment.AWS_SESSION_TOKEN;
+    delete browserEnvironment.AWS_CONTAINER_AUTHORIZATION_TOKEN;
     execFile('rundll32.exe', ['url.dll,FileProtocolHandler', address], { windowsHide: true, env: browserEnvironment }, error => {
       if (error) console.error('Open this address in your browser: ' + address);
     });
