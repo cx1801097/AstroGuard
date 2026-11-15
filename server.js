@@ -11,12 +11,18 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('node:child_process');
 const { createGeminiHandler } = require('./gemini');
+const { createBedrockReview, PROVIDER } = require('./bedrock');
 
 const ROOT = __dirname;
 const args = process.argv.slice(2);
 const openBrowser = args.includes('--open');
 const PORT = Number(args.find(arg => arg !== '--open') || process.env.PORT || 8080);
-const handleGemini = createGeminiHandler({ apiKey: process.env.GEMINI_API_KEY });
+const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK?.trim();
+const handleCloudReview = createGeminiHandler(bedrockKey ? {
+  apiKey: bedrockKey,
+  provider: PROVIDER,
+  review: createBedrockReview(process.env.AWS_REGION || 'us-east-1')
+} : { apiKey: process.env.GEMINI_API_KEY });
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -41,8 +47,8 @@ const server = http.createServer((req, res) => {
     res.end('Malformed path');
     return;
   }
-  if (url === '/api/gemini-analysis') {
-    handleGemini(req, res).catch(() => {
+  if (url === '/api/cloud-analysis' || url === '/api/gemini-analysis') {
+    handleCloudReview(req, res).catch(() => {
       if (!res.headersSent && !res.destroyed) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'The review request was interrupted.' }));
@@ -106,6 +112,7 @@ server.listen(PORT, openBrowser ? 'localhost' : undefined, () => {
   if (openBrowser && process.platform === 'win32') {
     const browserEnvironment = { ...process.env };
     delete browserEnvironment.GEMINI_API_KEY;
+    delete browserEnvironment.AWS_BEARER_TOKEN_BEDROCK;
     execFile('rundll32.exe', ['url.dll,FileProtocolHandler', address], { windowsHide: true, env: browserEnvironment }, error => {
       if (error) console.error('Open this address in your browser: ' + address);
     });

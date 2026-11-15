@@ -142,11 +142,11 @@ Enter SpO₂ (%) and heart rate (bpm), then select the source and the activity *
 
 The detector executes entirely in the browser, including when run from `index.html`. Detection needs no model download, API key, or telemetry. Mission readiness still covers the original body systems and symptoms. Vital-sign status covers only oxygen and pulse.
 
-### Gemini mission demo review
+### Cloud AI mission demo review
 
-On Windows, use `Start-Crew-Check-Gemini.cmd` and enter your Gemini API key at the hidden prompt. For other operating systems, provide `GEMINI_API_KEY` in the Node server process environment and open `http://localhost:8080`. Under **Health Monitoring System → Action plan**, click **Analyze mission with Gemini**. No model download is required for this mode.
+On Windows, double-click `Start-Crew-Check-Bedrock.cmd` and enter your [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html) at the hidden prompt. You can also set `AWS_BEARER_TOKEN_BEDROCK` in the server environment and run `node server.js`. Bedrock uses Amazon Nova Micro in `us-east-1` by default. Set `AWS_REGION` to another [Region that supports in-region Nova Micro inference](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-micro.html) if your account requires it. To use Gemini 2.5 Flash-Lite instead, use `Start-Crew-Check-Gemini.cmd` or set `GEMINI_API_KEY` in the server environment. Bedrock takes precedence if both keys are set.
 
-The local server sends only categories of simulated findings to Gemini 2.5 Flash-Lite. Names, notes, raw vital signs and measured or digitized crew records stay out of the cloud request. Gemini ranks existing findings and can select a relevant follow-up question. The original alerts and crew guidance remain present and have priority. The server accepts same-origin loopback requests only, caps output and limits cloud requests to 20 an hour per running server. The key stays in server process memory. The static GitHub Pages demo cannot run this endpoint.
+Open `http://localhost:8080` and choose **Health Monitoring System → Action plan → Analyze mission with AI**. The local server sends only categories from simulated check-ins. Names, notes, raw vital signs and measured or digitized crew records stay out of the cloud request. The model ranks existing findings and can select a follow-up question. The original alerts and crew guidance have priority. The server accepts same-origin loopback requests only, caps output and limits cloud requests to 20 an hour per running server. Keep your API key in the server environment or enter it at the hidden prompt. The static GitHub Pages demo cannot run this endpoint.
 
 ### Optional on-device AI highlight
 

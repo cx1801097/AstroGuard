@@ -63,18 +63,23 @@ async function analyzeScenario(input, apiKey, fetcher = fetch) {
   const answer = await upstream.json();
   const text = answer.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text || '').join('');
   const result = JSON.parse(text || 'null');
+  return validateReview(input, result, MODEL, 'Gemini');
+}
+
+function validateReview(input, result, model, provider) {
+  const ids = input.findings.map((_, index) => String(index));
   if (!result || !Array.isArray(result.priority) || result.priority.length < 1 || result.priority.length > 3 ||
       new Set(result.priority).size !== result.priority.length || result.priority.some(id => !ids.includes(id)) ||
-      !input.questions.includes(result.clarification)) throw new Error('Invalid Gemini response');
+      !input.questions.includes(result.clarification)) throw new Error('Invalid ' + provider + ' response');
   const priority = result.priority.map(Number);
   const chestPain = input.findings.findIndex(item => item.kind === 'chest_pain');
   if (chestPain >= 0) {
-    return { model: MODEL, priority: [chestPain, ...priority.filter(index => index !== chestPain)].slice(0, 3), clarification: '' };
+    return { model, priority: [chestPain, ...priority.filter(index => index !== chestPain)].slice(0, 3), clarification: '' };
   }
-  return { model: MODEL, priority, clarification: clarifications[result.clarification] };
+  return { model, priority, clarification: clarifications[result.clarification] };
 }
 
-function createGeminiHandler({ apiKey, fetcher, now = Date.now } = {}) {
+function createGeminiHandler({ apiKey, fetcher, now = Date.now, review = analyzeScenario, provider = 'Gemini' } = {}) {
   let calls = [];
   let running = false;
   return async function handleGemini(req, res) {
@@ -86,10 +91,10 @@ function createGeminiHandler({ apiKey, fetcher, now = Date.now } = {}) {
     const host = req.headers.host || '';
     if (!local || !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host) ||
         req.headers.origin !== 'http://' + host) {
-      return reply(403, { error: 'Gemini is available only from this computer’s CREW CHECK server.' });
+      return reply(403, { error: 'Cloud review is available only from this computer’s CREW CHECK server.' });
     }
     if (req.method !== 'POST') return reply(405, { error: 'Use POST.' });
-    if (!apiKey) return reply(503, { error: 'Start CREW CHECK with the Gemini launcher and enter your API key.' });
+    if (!apiKey) return reply(503, { error: 'Start CREW CHECK with the Bedrock or Gemini launcher and enter your API key.' });
     if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) return reply(415, { error: 'Expected JSON.' });
     let bytes = 0;
     const chunks = [];
@@ -100,28 +105,28 @@ function createGeminiHandler({ apiKey, fetcher, now = Date.now } = {}) {
     }
     let input;
     try { input = scenario(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch {}
-    if (!input) return reply(400, { error: 'Gemini accepts only simulated scenario categories.' });
+    if (!input) return reply(400, { error: 'Cloud review accepts only simulated scenario categories.' });
     const time = now();
     calls = calls.filter(previous => time - previous < 60 * 60 * 1000);
     if (running || calls.length >= 20 || (calls.length && time - calls.at(-1) < 3000)) {
-      return reply(429, { error: 'Gemini is busy or has reached the local limit of 20 requests per hour.' });
+      return reply(429, { error: 'Cloud review is busy or has reached the local limit of 20 requests per hour.' });
     }
     running = true;
     calls.push(time);
     try {
-      const result = await analyzeScenario(input, apiKey, fetcher);
+      const result = await review(input, apiKey, fetcher);
       if (result.upstreamStatus) {
         const status = result.upstreamStatus;
-        return reply(status === 429 ? 429 : 502, { error: status === 429 ? 'Google quota is currently unavailable.' :
-          'Google rejected the Gemini request (HTTP ' + status + '). Check the API key and project access.' });
+        return reply(status === 429 ? 429 : 502, { error: status === 429 ? provider + ' quota is currently unavailable.' :
+          provider + ' rejected the request (HTTP ' + status + '). Check the API key and model access.' });
       }
       return reply(200, result);
     } catch {
-      return reply(502, { error: 'Gemini could not return a valid review. The crew guidance above is still available.' });
+      return reply(502, { error: provider + ' could not return a valid review. The crew guidance above is still available.' });
     } finally {
       running = false;
     }
   };
 }
 
-module.exports = { MODEL, createGeminiHandler, scenario, analyzeScenario };
+module.exports = { MODEL, createGeminiHandler, scenario, analyzeScenario, validateReview };

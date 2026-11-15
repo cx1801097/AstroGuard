@@ -514,8 +514,8 @@
     $('#geminiFindings').hidden = true;
     $('#geminiClarification').hidden = true;
     $('#geminiStatus').textContent = available
-      ? 'Gemini reviews the simulated check-in. Only finding categories are sent to Google.'
-      : 'Open CREW CHECK with the Gemini launcher to enable this review.';
+      ? 'Cloud AI reviews finding categories from the simulated check-in.'
+      : 'Open CREW CHECK with the Bedrock or Gemini launcher to enable this review.';
   }
 
   async function runGemini() {
@@ -529,9 +529,9 @@
     button.disabled = true;
     findings.hidden = true;
     clarification.hidden = true;
-    status.textContent = 'Gemini is reviewing the simulated findings…';
+    status.textContent = 'AI is reviewing the simulated findings…';
     try {
-      var response = await fetch('/api/gemini-analysis', {
+      var response = await fetch('/api/cloud-analysis', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reviewing.request), signal: AbortSignal.timeout(22000)
       });
@@ -549,9 +549,9 @@
       findings.hidden = false;
       clarification.textContent = result.clarification;
       clarification.hidden = !result.clarification;
-      status.textContent = 'Gemini 2.5 Flash-Lite · prioritized review';
+      status.textContent = (result.model === 'amazon.nova-micro-v1:0' ? 'Amazon Nova Micro' : 'Gemini 2.5 Flash-Lite') + ' · prioritized review';
     } catch {
-      if (reviewing === geminiScenario) status.textContent = 'Gemini is unavailable. Use the crew guidance above.';
+      if (reviewing === geminiScenario) status.textContent = 'Cloud AI is unavailable. Use the crew guidance above.';
     } finally {
       geminiPending = false;
       button.disabled = false;
