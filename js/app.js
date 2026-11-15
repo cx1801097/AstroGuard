@@ -73,7 +73,7 @@
     state.quality = entry ? cloneObj(entry.quality) : {};
     state.symptoms = entry ? (entry.symptoms || []).slice() : [];
     state.note = entry ? entry.note || '' : '';
-    state.wearable = entry ? entry.wearable || null : null;
+    state.wearable = entry?.wearable ? cloneObj(entry.wearable) : null;
   }
 
   function detectionInput() {
@@ -184,7 +184,7 @@
   var metricInputSyncs = {};
 
   function setMetric(id, value, source) {
-    if (id === 'heartRate') state.wearable = null;
+    if (state.wearable && Object.hasOwn(state.wearable, id)) delete state.wearable[id];
     if (value === null) delete state.draft[id];
     else state.draft[id] = value;
     delete state.quality[id];
@@ -564,7 +564,8 @@
     var sameSym = JSON.stringify(saved.symptoms) === JSON.stringify(state.symptoms.slice().sort());
     if (same && sameSym && saved.source === state.source && saved.activity === state.activity &&
         saved.crew === state.mission.crew && saved.note === state.note &&
-        JSON.stringify(saved.quality) === JSON.stringify(state.quality)) {
+        JSON.stringify(saved.quality) === JSON.stringify(state.quality) &&
+        JSON.stringify(saved.wearable || {}) === JSON.stringify(state.wearable || {})) {
       node.textContent = 'Saved for flight day ' + state.mission.flightDay + '.';
       node.className = 'save-state is-saved';
     } else {
@@ -843,12 +844,14 @@
     renderLog();
   }
 
-  function useWearable(sample) {
-    if (state.mode !== 'mission' || !sample) return;
-    setMetric('heartRate', sample.value, 'both');
-    state.wearable = { heartRate: sample };
+  function useWearable(sample, fromArchive) {
+    if (state.mode !== 'mission' || !sample || !['heartRate', 'spo2'].includes(sample.metric)) return;
+    if (fromArchive) state.activity = sample.provider === 'tcx' ? 'exercise' : 'unknown';
+    setMetric(sample.metric, sample.value, 'both');
+    state.wearable = Object.assign({}, state.wearable, { [sample.metric]: sample });
+    syncCheckin();
     updateSaveState();
-    toast('Wearable heart rate added to this check-in. Save to keep it.');
+    toast('Wearable reading added to this check-in. Save to keep it.');
   }
 
   function updateResources(details) {

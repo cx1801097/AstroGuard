@@ -15,6 +15,7 @@
   function boot() {
     const Store = window.CC_STORAGE;
     const Console = window.CC_CONSOLE;
+    const WearableFiles = window.CC_WEARABLE_FILES;
     const consoleView = byId('consoleView');
     let view = 'home';
     let wearableBack = 'home';
@@ -24,6 +25,9 @@
     let recording = false;
     let lastRecorded = 0;
     let records = [];
+    let pendingImport;
+    let importRevision = 0;
+    let recentReadings = [];
     try {
       const saved = JSON.parse(localStorage.getItem(recordingKey) || '[]');
       if (Array.isArray(saved)) records = saved;
@@ -46,6 +50,7 @@
       if (next === 'simulator') Console.open('simulator', Store.load() || window.CC_SAMPLE.build(), '');
       if (next === 'replay') showReplay();
       if (next === 'mission') showSavedMissions();
+      if (next === 'wearable') showWearableHistory();
       if (next === 'dashboard') {
         const { scope, mission } = activeMission;
         showMissionProfile(mission);
@@ -122,6 +127,22 @@
       byId('exportWearable').disabled = !records.length;
     }
 
+    function showWearableHistory() {
+      const select = byId('savedWearableReading');
+      const selected = select.value === '' ? null : recentReadings[Number(select.value)];
+      recentReadings = records.slice().sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 20);
+      select.replaceChildren(...recentReadings.map((reading, index) => new Option(
+        reading.timestamp.replace('T', ' ').replace(/\.\d{3}Z$/, '') + ' · ' +
+        (reading.metric === 'spo2' ? 'Blood oxygen' : 'Heart rate') + ' ' + reading.value + ' ' + reading.unit +
+        ' · ' + reading.provider, String(index)
+      )));
+      const selectedIndex = recentReadings.indexOf(selected);
+      if (selectedIndex >= 0) select.value = String(selectedIndex);
+      byId('savedWearablePanel').hidden = !recentReadings.length;
+      byId('useSavedWearable').hidden = wearableBack !== 'dashboard';
+      byId('savedWearableHint').hidden = wearableBack !== 'dashboard';
+    }
+
     function receive(sample) {
       latest = sample;
       clearTimeout(expiry);
@@ -142,6 +163,7 @@
         records = next;
         lastRecorded = time;
         setRecordStatus();
+        if (view === 'wearable' && byId('useSavedWearable').hidden) showWearableHistory();
       } catch {
         recording = false;
         setRecordStatus('Recording stopped because local storage is unavailable or full.');
@@ -260,7 +282,6 @@
         return;
       }
       recording = !recording;
-      lastRecorded = Date.parse(records.at(-1)?.timestamp) || 0;
       setRecordStatus(recording ? 'Recording up to one reading every five seconds.' : '');
       if (recording && latest && Date.now() - Date.parse(latest.timestamp) < freshnessMs) receive(latest);
     });
@@ -271,6 +292,60 @@
       link.download = 'crew-check-wearable-readings.json';
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    byId('wearableImport').addEventListener('change', async event => {
+      const file = event.currentTarget.files[0];
+      const revision = ++importRevision;
+      const status = byId('wearableImportStatus');
+      pendingImport = undefined;
+      byId('saveImportedWearable').disabled = true;
+      if (!file) {
+        status.textContent = 'Choose a readings file.';
+        return;
+      }
+      if (file.size > 30_000_000) {
+        status.textContent = 'This file is larger than 30 MB. Export a smaller file or convert the readings to CSV.';
+        return;
+      }
+      status.textContent = 'Reading file locally…';
+      try {
+        const result = WearableFiles.parse(await file.text(), file.name);
+        if (revision !== importRevision) return;
+        if (!result.records.length) {
+          status.textContent = 'No usable timestamped heart-rate or oxygen readings were found.';
+          return;
+        }
+        pendingImport = result.records;
+        status.textContent = result.records.length + ' valid readings found. ' + result.skipped + ' invalid readings skipped. Review the file before saving.';
+        byId('saveImportedWearable').disabled = false;
+      } catch (error) {
+        if (revision === importRevision) status.textContent = 'Could not read the file. ' + error.message;
+      }
+    });
+    byId('saveImportedWearable').addEventListener('click', () => {
+      if (!pendingImport) return;
+      const result = WearableFiles.merge(records, pendingImport, maxReadings);
+      const status = byId('wearableImportStatus');
+      try {
+        if (result.added) localStorage.setItem(recordingKey, JSON.stringify(result.records));
+        records = result.records;
+        pendingImport = undefined;
+        byId('saveImportedWearable').disabled = true;
+        byId('wearableImport').value = '';
+        status.textContent = result.added + ' saved · ' + result.duplicates + ' duplicates skipped' +
+          (result.overflow ? ' · ' + result.overflow + ' could not fit in the 5,000-reading archive' : '.');
+        setRecordStatus();
+        showWearableHistory();
+      } catch {
+        status.textContent = 'Could not save readings. Local storage is unavailable or full.';
+      }
+    });
+    byId('useSavedWearable').addEventListener('click', () => {
+      const sample = recentReadings[Number(byId('savedWearableReading').value)];
+      if (!sample || wearableBack !== 'dashboard') return;
+      if (!window.confirm('Use the reading from ' + sample.timestamp + ' in the current mission check-in? Confirm it belongs to this crew member and mission day.')) return;
+      show('dashboard');
+      Console.useWearable(sample, true);
     });
 
     setRecordStatus();

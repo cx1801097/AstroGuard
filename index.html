@@ -17,7 +17,7 @@
       <button type="button" class="card portal-option" data-open="simulator"><strong>Health Monitoring System</strong><span>Explore the dashboard with a simulated mission.</span></button>
       <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
       <button type="button" class="card portal-option" data-open="mission"><strong>New mission</strong><span>Set up a mission and open a measured crew record.</span></button>
-      <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Pair a compatible heart-rate sensor and record real readings.</span></button>
+      <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Connect live over Bluetooth or import readings from your watch app.</span></button>
     </div>
   </section>
   <section id="missionView" class="portal-view" hidden>
@@ -82,6 +82,27 @@
         <button type="button" id="exportWearable" class="btn">Export readings</button>
       </div>
       <p id="wearableRecordStatus" role="status"></p>
+    </div>
+    <div class="card">
+      <h2>Import watch readings</h2>
+      <p>Choose Apple Health export.xml, a TCX activity with heart-rate samples, or a compatible CSV or CREW CHECK JSON file. Extract the file from its ZIP first.</p>
+      <details>
+        <summary>Which file should I use?</summary>
+        <ul>
+          <li>Apple Watch or another device that syncs to Apple Health: export Health data on your iPhone, then select export.xml.</li>
+          <li>Garmin or another activity app that offers TCX: export one activity that includes heart rate.</li>
+          <li>Other watches: use a per-reading export from the companion app. For CSV, use timestamp plus heartRate (bpm) or spo2 (percent). Each timestamp must include a time zone. Daily averages are not individual readings.</li>
+        </ul>
+      </details>
+      <div class="field"><label for="wearableImport">Readings file · up to 30 MB</label><input id="wearableImport" type="file" accept=".xml,.tcx,.csv,.json"></div>
+      <button type="button" id="saveImportedWearable" class="btn" disabled>Save imported readings</button>
+      <p id="wearableImportStatus" role="status">Files are read on this device.</p>
+      <div id="savedWearablePanel" class="field" hidden>
+        <label for="savedWearableReading">Recent saved readings · UTC</label>
+        <select id="savedWearableReading"></select>
+        <button type="button" id="useSavedWearable" class="btn" hidden>Use selected reading in current check-in</button>
+        <p id="savedWearableHint" hidden>Choose a reading from the current mission day and confirm the recorded activity before saving the check-in.</p>
+      </div>
     </div>
   </section>
 </main>
@@ -314,6 +335,7 @@
 <script src="data/sample-mission.js"></script>
 <script src="data/i4-replay.js"></script>
 <script src="js/wearable.js"></script>
+<script src="js/wearable-files.js"></script>
 <script src="js/app.js"></script>
 <script src="js/portal.js"></script>
 </body>
