@@ -103,6 +103,7 @@
         <button class="tab" data-tab="trends" role="tab" aria-selected="false">Trends</button>
         <button class="tab" data-tab="plan" role="tab" aria-selected="false">Action plan</button>
         <button class="tab" data-tab="log" role="tab" aria-selected="false">Mission log</button>
+        <button class="tab" id="i4Tab" data-tab="i4" role="tab" aria-controls="i4Replay" aria-selected="false">I4 mission replay</button>
       </nav>
       <div class="workspace-tools">
         <button id="demoBtn" class="btn btn-ghost" title="Load the 30-day sample mission">Demo mission</button>
@@ -173,6 +174,45 @@
           </table>
         </div>
       </div>
+
+      <section class="pane i4-replay" id="i4Replay" data-pane="i4" role="tabpanel" aria-labelledby="i4Tab">
+        <div class="pane-head">
+          <h2>Inspiration4 mission replay</h2>
+          <p class="muted">September 15–18, 2021 · Eastern time</p>
+        </div>
+        <div class="card">
+          <div class="field">
+            <label for="i4Milestone">Mission milestone</label>
+            <select id="i4Milestone">
+              <option value="launch">Launch · September 15</option>
+              <option value="orbit">In orbit · September 16–18</option>
+              <option value="splashdown">Splashdown · September 18</option>
+            </select>
+          </div>
+          <div aria-live="polite">
+            <article data-i4-step="launch">
+              <h3>Launch</h3>
+              <p>At 10:02 p.m. EDT, a Falcon 9 lifted off from Launch Complex 39A at Kennedy Space Center in Florida.</p>
+            </article>
+            <article data-i4-step="orbit" hidden>
+              <h3>In orbit</h3>
+              <p>Dragon carried four civilian crew members in low Earth orbit for about three days.</p>
+            </article>
+            <article data-i4-step="splashdown" hidden>
+              <h3>Splashdown</h3>
+              <p>Dragon and its crew returned safely off the Florida coast at 7:06 p.m. EDT.</p>
+            </article>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Health data pending</h3>
+          <p>Vital-sign readings and detection results will appear here once the replay dataset is provided.</p>
+        </div>
+        <p class="muted">
+          <a href="https://www.spacex.com/launches/inspiration4/">SpaceX mission timeline</a>
+          · <a href="https://www.nasa.gov/osdr-latest-news-i4-mission-datasets/">NASA Inspiration4 research archive</a>
+        </p>
+      </section>
 
     </div>
   </section>

@@ -704,6 +704,12 @@
       });
     });
 
+    $('#i4Milestone').addEventListener('change', function (ev) {
+      $$('#i4Replay [data-i4-step]').forEach(function (step) {
+        step.hidden = step.getAttribute('data-i4-step') !== ev.target.value;
+      });
+    });
+
     /* system list */
     $('#systemList').addEventListener('click', function (ev) {
       var card = ev.target.closest ? ev.target.closest('.system-card') : null;

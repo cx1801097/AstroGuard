@@ -53,6 +53,7 @@ Deployment is GitHub Pages from `main` → `/` (root), so any push to `main` red
 | **Trends** | Mission-wide readiness chart with GO/CAUTION/NO-GO zones, plus a sparkline per indicator with its normal range shaded. |
 | **Action plan** | The triage answer: overall status, findings outside limits, and ranked countermeasures per system. |
 | **Mission log** | Every saved check-in, with load / delete. |
+| **I4 mission replay** | Browse the documented Inspiration4 launch, orbital flight, and splashdown. Health readings are pending the supplied dataset. |
 
 **Demo conditions** load a nominal day, a deconditioning episode, or a medical event in one click — useful for judging and for briefing the crew.
 

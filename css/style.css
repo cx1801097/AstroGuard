@@ -349,7 +349,7 @@ input[type="range"]::-moz-range-thumb {
   flex-wrap: wrap;
 }
 
-.tabs { display: flex; gap: 4px; background: rgba(6, 12, 20, 0.6); padding: 4px; border-radius: 11px; border: 1px solid var(--line-soft); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; background: rgba(6, 12, 20, 0.6); padding: 4px; border-radius: 11px; border: 1px solid var(--line-soft); }
 .tab {
   padding: 7px 14px;
   border-radius: 8px;
@@ -369,6 +369,9 @@ input[type="range"]::-moz-range-thumb {
 .panes { padding: 16px; flex: 1; }
 .pane { display: none; }
 .pane.is-active { display: block; animation: fade 0.25s ease; }
+.i4-replay > .card { margin-bottom: 12px; }
+.i4-replay h3 { font-size: 14px; margin-bottom: 4px; }
+.i4-replay a { color: var(--cyan); }
 
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
