@@ -1,0 +1,508 @@
+/* ============================================================
+   ASTROGUARD — home.css
+   Landing page: space backdrop, primary navigation, hero and
+   feature cards. Fully local — no external fonts, images or
+   scripts, so the page renders the same with no network.
+   ============================================================ */
+
+:root {
+  --lc-blue: #2f6bff;
+  --lc-blue-hi: #74a9ff;
+  --lc-purple: #8b5cf6;
+  --lc-purple-hi: #c3a6ff;
+  --lc-teal: #14b8a6;
+  --lc-teal-hi: #63e6d6;
+  --lc-amber: #f59e0b;
+  --lc-amber-hi: #ffd27a;
+  --lc-ink: #eef4fc;
+  --lc-ink-dim: #c2d1e4;
+  --lc-edge: rgba(126, 165, 214, 0.18);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================ BACKDROP ============================ */
+body.is-landing {
+  background: #03070f;
+  min-height: 100vh;
+}
+
+.landing-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: none;
+  background-color: #03070f;
+  background-image: url("../assets/hero-space.jpg");
+  background-size: cover;
+  background-position: 72% 42%;
+  background-repeat: no-repeat;
+}
+
+body.is-landing .landing-backdrop { display: block; }
+
+/* Scrims: keep the headline readable over the photo without
+   flattening the scene. */
+.landing-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(101deg, rgba(2, 6, 13, 0.95) 0%, rgba(3, 8, 16, 0.88) 26%, rgba(4, 10, 20, 0.42) 58%, rgba(3, 8, 16, 0.6) 100%),
+    linear-gradient(180deg, rgba(3, 7, 15, 0.88) 0%, rgba(3, 7, 15, 0) 24%, rgba(3, 7, 15, 0) 66%, rgba(2, 5, 12, 0.92) 100%);
+}
+
+.landing-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(1300px 760px at 82% 4%, rgba(47, 107, 255, 0.14), transparent 62%),
+              radial-gradient(900px 620px at 4% 96%, rgba(20, 184, 166, 0.1), transparent 60%);
+}
+
+/* ============================ SITE NAV ============================ */
+/* The nav belongs to the landing page. Inside the console the workspace
+   keeps its own brand bar and navigation, so this one steps aside. */
+.site-nav {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  align-items: center;
+  gap: 22px;
+  padding: 13px clamp(20px, 4vw, 64px);
+  background: linear-gradient(180deg, rgba(3, 8, 17, 0.94), rgba(3, 8, 17, 0.52));
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(126, 165, 214, 0.1);
+}
+
+body.is-landing .site-nav { display: flex; }
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--lc-ink);
+}
+
+.site-brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #cfe0f5;
+}
+.site-brand-mark svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.site-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.site-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 auto;
+}
+
+.site-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 17px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #c4d2e4;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.site-nav-link svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.site-nav-link:hover {
+  background: rgba(120, 160, 210, 0.14);
+  color: #fff;
+}
+.site-nav-link.is-active {
+  background: linear-gradient(180deg, #3a78ff, #1d4ad6);
+  color: #fff;
+  box-shadow: 0 6px 22px rgba(47, 107, 255, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.site-nav-end {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.site-icon-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--lc-edge);
+  background: rgba(12, 22, 38, 0.6);
+  color: #b9c8dc;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+.site-icon-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.site-icon-btn:hover {
+  border-color: rgba(116, 169, 255, 0.55);
+  color: #fff;
+  background: rgba(20, 36, 60, 0.7);
+}
+
+.site-settings {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 288px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--lc-edge);
+  background: rgba(8, 15, 27, 0.97);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.6);
+  z-index: 45;
+}
+.site-settings-title {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.site-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--lc-ink);
+  cursor: pointer;
+}
+.site-setting-row input { accent-color: var(--lc-blue); width: 16px; height: 16px; }
+.site-setting-link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--lc-edge);
+  border-radius: 10px;
+  background: rgba(18, 32, 52, 0.7);
+  color: var(--lc-ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.site-setting-link:hover { border-color: rgba(116, 169, 255, 0.5); }
+.site-settings-note {
+  margin-top: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ============================ HERO ============================ */
+body.is-landing .portal {
+  max-width: 1420px;
+  min-height: calc(100vh - 132px);
+  padding: clamp(26px, 4vw, 62px) clamp(20px, 4vw, 64px) clamp(30px, 3vw, 48px);
+}
+
+.home-view {
+  max-width: none;
+}
+
+.home-hero {
+  max-width: 680px;
+}
+
+.home-title {
+  font-size: clamp(40px, 6vw, 74px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 6px 34px rgba(0, 0, 0, 0.55);
+}
+
+.home-rule {
+  display: block;
+  width: 76px;
+  height: 4px;
+  border-radius: 4px;
+  margin: 16px 0 14px;
+  background: linear-gradient(90deg, #6ea3ff, #2f6bff);
+  box-shadow: 0 0 20px rgba(47, 107, 255, 0.6);
+}
+
+.home-lede {
+  font-size: clamp(14.5px, 1.3vw, 18px);
+  line-height: 1.5;
+  color: #c7d5e7;
+  max-width: 42ch;
+}
+
+/* ============================ CARDS ============================ */
+.home-cards {
+  margin-top: clamp(22px, 3vw, 40px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 1.5vw, 22px);
+}
+
+.home-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(14px, 1.5vw, 24px);
+  min-height: clamp(114px, 10.5vw, 146px);
+  padding: clamp(16px, 1.9vw, 26px);
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid var(--tone-edge);
+  background: linear-gradient(135deg, var(--tone-a), var(--tone-b));
+  color: var(--lc-ink);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.home-card--blue {
+  --tone: #2f6bff; --tone-hi: #74a9ff;
+  --tone-a: rgba(21, 56, 140, 0.58);
+  --tone-b: rgba(8, 19, 42, 0.74);
+  --tone-edge: rgba(92, 142, 255, 0.44);
+}
+.home-card--purple {
+  --tone: #8b5cf6; --tone-hi: #c3a6ff;
+  --tone-a: rgba(67, 36, 133, 0.58);
+  --tone-b: rgba(16, 10, 40, 0.74);
+  --tone-edge: rgba(162, 122, 255, 0.44);
+}
+.home-card--teal {
+  --tone: #14b8a6; --tone-hi: #63e6d6;
+  --tone-a: rgba(7, 87, 80, 0.58);
+  --tone-b: rgba(4, 27, 31, 0.74);
+  --tone-edge: rgba(45, 212, 191, 0.42);
+}
+.home-card--amber {
+  --tone: #f59e0b; --tone-hi: #ffd27a;
+  --tone-a: rgba(119, 67, 10, 0.58);
+  --tone-b: rgba(34, 20, 6, 0.74);
+  --tone-edge: rgba(251, 191, 36, 0.42);
+}
+
+.home-card-icon {
+  width: clamp(54px, 4.6vw, 74px);
+  height: clamp(54px, 4.6vw, 74px);
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: linear-gradient(160deg, var(--tone-hi), var(--tone));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 38px -6px var(--tone);
+}
+.home-card-icon svg {
+  width: 46%;
+  height: 46%;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-card-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.home-card-copy strong {
+  font-size: clamp(17px, 1.75vw, 23px);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  color: #fff;
+}
+.home-card-copy span {
+  font-size: clamp(12.5px, 1.05vw, 14.5px);
+  line-height: 1.45;
+  color: #c6d4e6;
+  max-width: 44ch;
+}
+
+.home-card-go {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.home-card-go svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-card:hover,
+.home-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--tone-hi);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 46px -14px var(--tone);
+}
+.home-card:hover .home-card-go {
+  background: var(--tone);
+  border-color: transparent;
+  transform: translateX(3px);
+}
+
+.home-card-deco {
+  position: absolute;
+  right: -6px;
+  bottom: -8px;
+  width: 190px;
+  height: 92px;
+  z-index: -1;
+  opacity: 0.5;
+  fill: none;
+  stroke: var(--tone-hi);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.home-card-deco .deco-faint { opacity: 0.4; stroke-width: 1.2; }
+.home-card-deco--planet,
+.home-card-deco--arc {
+  width: 230px;
+  height: 140px;
+  right: -20px;
+  bottom: -46px;
+}
+.home-card-deco--wave { stroke-width: 1.8; }
+
+/* ============================ FOOTER ============================ */
+.footer-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-item svg {
+  width: 19px;
+  height: 19px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.is-landing .footer {
+  max-width: none;
+  padding: 18px clamp(20px, 4vw, 64px) 24px;
+  border-top: 1px solid rgba(126, 165, 214, 0.1);
+  background: linear-gradient(180deg, rgba(3, 8, 16, 0.3), rgba(2, 5, 11, 0.88));
+  color: #93a6bd;
+  font-size: 12px;
+}
+body.is-landing .footer strong { color: #cddaea; }
+
+/* ============================ RESPONSIVE ============================ */
+@media (max-width: 980px) {
+  .site-nav { gap: 12px; }
+  .site-nav-links { gap: 0; }
+  .site-nav-link { padding: 9px 13px; }
+  .site-nav-link span { display: none; }
+  .site-nav-link svg { width: 19px; height: 19px; }
+  .site-brand-name { font-size: 13.5px; letter-spacing: 0.16em; }
+}
+
+@media (max-width: 760px) {
+  .site-nav { flex-wrap: wrap; padding-inline: 16px; }
+  .site-nav-links {
+    order: 3;
+    width: 100%;
+    margin: 0;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 2px;
+  }
+  .site-nav-link span { display: inline; }
+  .site-nav-link { padding: 8px 14px; font-size: 13px; }
+  .home-cards { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .home-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 14px;
+  }
+  .home-card-go { grid-column: 2; justify-self: start; }
+  body.is-landing .footer { flex-direction: column; gap: 10px; }
+}
+
+/* ============================ REDUCE MOTION ============================ */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+body.reduce-motion .home-card:hover { transform: none; }
