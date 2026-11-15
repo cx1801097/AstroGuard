@@ -13,6 +13,13 @@
     return observations[Number(output.trim()) - 1] || null;
   }
 
+  function weightManifestAlias(requestUrl, weightsUrl) {
+    // WebLLM 0.2.88 requests tensor-cache.json, while this Qwen3 export
+    // publishes the same shard manifest under the older name.
+    const requested = new URL('tensor-cache.json', weightsUrl).href;
+    return requestUrl === requested ? new URL('ndarray-cache.json', weightsUrl).href : null;
+  }
+
   function modelAssets(pageUrl) {
     const page = new URL(pageUrl);
     const local = ['localhost', '127.0.0.1', '[::1]'].includes(page.hostname);
@@ -29,7 +36,7 @@
     return page.protocol === 'https:' ? model : null;
   }
 
-  const localAI = { model, modelAssets, selectFocus };
+  const localAI = { model, modelAssets, selectFocus, weightManifestAlias };
   if (typeof module !== 'undefined' && module.exports) module.exports = localAI;
-  else window.CC_LOCAL_AI = localAI;
+  else globalThis.CC_LOCAL_AI = localAI;
 })();

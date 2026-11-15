@@ -555,7 +555,7 @@
           if (!aiPending) return;
           var data = event.data;
           if (data.failed) {
-            stopLocalAI('Model unavailable. Check the download, offline assets, or WebGPU support.', true);
+            stopLocalAI('Qwen3 failed while ' + data.stage + '. ' + data.detail, true);
           } else if (data.running) {
             $('#localAIStatus').textContent = 'Qwen3 is reviewing the findings on this device…';
           } else if (Number.isFinite(data.progress)) {
