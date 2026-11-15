@@ -426,11 +426,13 @@
   function renderPlan() {
     var r = state.result;
     var detection = Detection.evaluate(detectionInput(), state.mission.entries);
-    var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms);
+    var hazardInput = { ...detectionInput(), sleepTarget: 7.5, history: state.mission.entries };
+    var hazardFindings = Hazards?.evaluate(hazardInput) || [];
+    var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms, r.alerts, hazardFindings);
     setGeminiScenario(detection, suggestion);
     setLocalAIObservations(state.mode === 'replay' ? [] : suggestion.observations);
     $('#crewSuggestion').hidden = state.mode === 'replay';
-    $('#crewSituation').textContent = suggestion.situation;
+    renderObservations($('#crewSituation'), suggestion.observations);
     $('#crewNextStep').textContent = suggestion.next;
     $('#crewResourceStep').textContent = suggestion.resource;
     $('#crewResourceStep').hidden = !suggestion.resource;
@@ -443,9 +445,7 @@
         return '<li>' + esc(reason) + '</li>';
       }).join('') + '</ul>';
     $('#hazardReview').hidden = state.mode === 'replay' || !Hazards;
-    if (!$('#hazardReview').hidden) Hazards.render($('#hazardResults'), {
-      ...detectionInput(), sleepTarget: 7.5, history: state.mission.entries
-    });
+    if (!$('#hazardReview').hidden) Hazards.render($('#hazardResults'), hazardInput, hazardFindings);
     var reportAssessment = state.symptoms.includes('chestPain')
       ? Object.assign({}, detection, { severity: 'CRITICAL', reasons: ['Chest pain or pressure was reported.'].concat(detection.reasons) })
       : detection;
@@ -505,6 +505,14 @@
   var geminiPending = false;
   var programFallback = 'Using ASTROGUARD’s rule-based guidance above.';
 
+  function renderObservations(container, observations) {
+    container.replaceChildren(...observations.map(function (observation) {
+      var item = document.createElement('li');
+      item.textContent = observation;
+      return item;
+    }));
+  }
+
   function setGeminiScenario(detection, suggestion) {
     var inSimulator = state.mode === 'simulator';
     var example = detection.source !== 'simulated';
@@ -512,7 +520,8 @@
     if (cloudAIUrl && inSimulator && example) {
       var preset = D.SCENARIOS.nominal;
       detection = Detection.evaluate({ source: 'simulated', activity: 'rest', values: preset.values });
-      suggestion = Detection.crewSuggestion(detection, details, preset.symptoms);
+      var demoScore = S.evaluate(preset.values, { activity: 'rest' }, preset.symptoms);
+      suggestion = Detection.crewSuggestion(detection, details, preset.symptoms, demoScore.alerts);
     }
     var canReview = inSimulator && Boolean(cloudAIUrl) && suggestion.severity !== 'UNKNOWN' &&
       suggestion.findingCodes.length > 0;
@@ -539,6 +548,14 @@
     $('#geminiStatus').textContent = next.status + ' ' + programFallback;
   }
 
+  function postAIReview(request) {
+    return fetch(cloudAIUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request), signal: AbortSignal.timeout(26000),
+      credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error'
+    });
+  }
+
   async function runGemini() {
     if (geminiPending || !geminiScenario?.request) return;
     var reviewing = geminiScenario;
@@ -552,35 +569,51 @@
     clarification.hidden = true;
     status.textContent = 'AI is reviewing the simulated findings. ' + programFallback;
     try {
-      var response = await fetch(cloudAIUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reviewing.request), signal: AbortSignal.timeout(26000),
-        credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error'
-      });
+      var response = await postAIReview(reviewing.request);
       if (reviewing !== geminiScenario) return;
       var result = await response.json();
       if (reviewing !== geminiScenario) return;
+      var reviewedIndices = reviewing.request.findings.map(function (_, index) { return index; });
+      var partial = false;
+      // The previous Lambda rejects extended finding codes before calling Bedrock.
+      if (response.status === 400 && result.error === 'AI review accepts only simulated finding categories.') {
+        var legacyIndices = reviewedIndices.filter(function (index) {
+          var code = reviewing.request.findings[index];
+          return code.kind !== 'symptom' && (!code.metric || code.metric === 'spo2' || code.metric === 'heartRate');
+        });
+        if (legacyIndices.length && legacyIndices.length < reviewedIndices.length) {
+          reviewedIndices = legacyIndices;
+          partial = true;
+          response = await postAIReview({ ...reviewing.request, findings: legacyIndices.map(function (index) {
+            return reviewing.request.findings[index];
+          }) });
+          if (reviewing !== geminiScenario) return;
+          result = await response.json();
+          if (reviewing !== geminiScenario) return;
+        }
+      }
       if (!response.ok) {
         status.textContent = (typeof result.error === 'string' ? result.error : 'The AI review is unavailable.') + ' ' + programFallback;
         return;
       }
       if (!Array.isArray(result.priority) || !result.priority.length || result.priority.length > 3 ||
           new Set(result.priority).size !== result.priority.length ||
-          result.priority.some(index => !Number.isInteger(index) || index < 0 || index >= reviewing.observations.length) ||
+          result.priority.some(index => !Number.isInteger(index) || index < 0 || index >= reviewedIndices.length) ||
           typeof result.clarification !== 'string') {
         status.textContent = 'AI returned no usable review. ' + programFallback;
         return;
       }
-      findings.replaceChildren(...result.priority.map(function (index) {
-        var item = document.createElement('li');
-        item.textContent = reviewing.observations[index];
-        return item;
-      }));
+      var priority = result.priority.map(function (index) { return reviewedIndices[index]; });
+      var remaining = reviewing.observations.filter(function (_, index) { return !priority.includes(index); });
+      renderObservations(findings, priority.map(function (index) {
+        return reviewing.observations[index];
+      }).concat(remaining));
       findings.hidden = false;
       clarification.textContent = result.clarification;
       clarification.hidden = !result.clarification;
       status.textContent = (result.model === 'amazon.nova-micro-v1:0' ? 'Amazon Nova Micro' : 'Gemini 2.5 Flash-Lite') +
-        (reviewing.example ? ' · simulated example' : ' · prioritized review');
+        (reviewing.example ? ' · simulated example' : ' · prioritized review') +
+        (partial ? ' · limited cloud review. Additional findings use rule-based guidance.' : '');
     } catch {
       if (reviewing === geminiScenario) status.textContent = 'Cloud AI is unavailable. ' + programFallback;
     } finally {

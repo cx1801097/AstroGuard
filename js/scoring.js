@@ -33,6 +33,7 @@ window.CC_SCORING = (function () {
   }
 
   function readinessReading(entry, key) {
+    if (entry.quality?.[key] === 'invalid') return undefined;
     if (key === 'heartRate' && entry.activity === 'exercise') return undefined;
     if (key === 'heartRate' || key === 'spo2') return window.CC_DETECTION.reading(entry, key).value;
     return entry.values[key];
@@ -225,6 +226,7 @@ window.CC_SCORING = (function () {
       if (r && r.level >= 3) {
         alerts.push({
           type: 'metric',
+          id: m.id,
           system: m.system,
           level: r.level,
           text: m.label + ' ' + r.value + ' ' + m.unit + ' \u2014 ' + r.label
@@ -234,7 +236,7 @@ window.CC_SCORING = (function () {
     symptoms.forEach(function (id) {
       var s = D.SYMPTOM_BY_ID[id];
       if (s && s.severity >= 3) {
-        alerts.push({ type: 'symptom', system: s.systems[0], level: s.severity, text: 'Reported: ' + s.label });
+        alerts.push({ type: 'symptom', id: id, system: s.systems[0], level: s.severity, text: 'Reported: ' + s.label });
       }
     });
     if (alerts.some(function (a) { return a.level >= 4; })) triage = 'NO-GO';
