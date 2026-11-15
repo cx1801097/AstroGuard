@@ -11,7 +11,6 @@ window.CC_BODYMAP = (function () {
   function statusClass(status) {
     if (status === 'NO-GO') return 'is-nogo';
     if (status === 'CAUTION') return 'is-caution';
-    if (status === 'NO DATA') return 'is-nodata';
     return 'is-go';
   }
 
@@ -54,8 +53,7 @@ window.CC_BODYMAP = (function () {
 
     var dots = D.SYSTEMS.map(function (sys) {
       var st = systems[sys.id] || { status: 'GO', severity: 0 };
-      var assessed = st.assessed !== false;
-      var label = sys.name + ' \u2014 ' + (assessed ? st.status + ' (' + st.severity + '/100)' : 'no data in this source');
+      var label = sys.name + ' — ' + st.status + ' (' + st.severity + '/100)';
       var cls = 'hotspot ' + statusClass(st.status) + (sys.id === selected ? ' is-selected' : '');
       return '<g class="' + cls + '" data-system="' + sys.id + '" tabindex="0" role="button" aria-label="' + label + '">' +
         '<circle cx="' + sys.dot.x + '" cy="' + sys.dot.y + '" r="17" class="hotspot-halo"/>' +

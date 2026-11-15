@@ -2,18 +2,155 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="description" content="CREW CHECK — an offline in-flight health self-assessment tool. The crew member enters their own readings, gets a verdict and actions, and produces a handover report.">
-<title>CREW CHECK — In-Flight Health Self-Assessment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="CREW CHECK — in-flight health self-assessment console for long-duration space missions.">
+<title>CREW CHECK — In-Flight Health Console</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
+<main id="portal" class="portal">
+  <section id="homeView" class="portal-view">
+    <h1>CREW CHECK</h1>
+    <p>Review crew health, spot changes in vital signs, and prepare a check-in for ground review.</p>
+    <div class="portal-options">
+      <button type="button" class="card portal-option" data-open="simulator"><strong>Health Monitoring System</strong><span>Explore the dashboard with a simulated mission.</span></button>
+      <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
+      <button type="button" class="card portal-option" data-open="missionConsole"><strong>New mission</strong><span>Open the crew-operated mission console.</span></button>
+      <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Connect live over Bluetooth or import readings from your watch app.</span></button>
+    </div>
+  </section>
+  <section id="missionConsoleView" class="portal-view" hidden>
+    <nav class="portal-actions" aria-label="Mission console navigation">
+      <button type="button" class="btn" data-open="home">Home</button>
+      <button type="button" class="btn" data-open="wearable">Connect wearable device</button>
+      <button type="button" class="btn" data-open="replay">I4 mission playback</button>
+      <button type="button" class="btn" id="openSimulatorReview" hidden>AI demo review</button>
+      <button type="button" class="btn" data-open="mission">Previous mission setup and saved records</button>
+    </nav>
+    <h1>New mission</h1>
+    <iframe id="missionConsoleFrame" title="CREW CHECK mission console" data-src="new-mission/index.html"></iframe>
+  </section>
+  <section id="missionView" class="portal-view" hidden>
+    <button type="button" class="btn" data-open="home">Home</button>
+    <h1>New mission</h1>
+    <form id="missionForm" class="card">
+      <div class="mission-form-grid">
+        <div class="field"><label for="missionTitle">Mission name</label><input id="missionTitle" name="name" required maxlength="80"></div>
+        <div class="field"><label for="missionCode">Mission ID</label><input id="missionCode" name="identifier" maxlength="48"></div>
+        <div class="field"><label for="vehicle">Spacecraft type or model</label><input id="vehicle" name="vehicle" required maxlength="80"></div>
+        <div class="field"><label for="operator">Mission operator</label><input id="operator" name="operator" maxlength="80"></div>
+        <div class="field"><label for="launchDate">Launch date</label><input type="date" id="launchDate" name="launchDate" required></div>
+        <div class="field"><label for="returnDate">Planned return date</label><input type="date" id="returnDate" name="returnDate"></div>
+        <div class="field"><label for="missionStatus">Mission status</label><select id="missionStatus" name="status"><option>Planned</option><option>Active</option><option>Completed</option><option>On hold</option></select></div>
+        <div class="field"><label for="missionPhase">Flight phase</label><select id="missionPhase" name="phase"><option>Preflight</option><option>Ascent</option><option>In orbit</option><option>Transit</option><option>Surface operations</option><option>Reentry</option><option>Recovery</option></select></div>
+        <div class="field"><label for="missionDestination">Destination or orbit</label><input id="missionDestination" name="destination" maxlength="80"></div>
+        <div class="field"><label for="launchSite">Launch site</label><input id="launchSite" name="launchSite" maxlength="80"></div>
+        <div class="field"><label for="missionCrew">Monitored crew ID</label><input id="missionCrew" name="crew" required maxlength="24"></div>
+        <div class="field"><label for="crewSize">Total crew size</label><input id="crewSize" name="crewSize" type="number" min="1" step="1"></div>
+        <div class="field"><label for="initialDay">Current flight day</label><input id="initialDay" name="flightDay" type="number" min="1" step="1" value="1" required></div>
+        <div class="field"><label for="medicalChannel">Private medical channel reference</label><input id="medicalChannel" name="medicalChannel" maxlength="100"></div>
+      </div>
+      <div class="field"><label for="missionNotes">Mission objectives and operational notes</label><textarea id="missionNotes" name="notes" maxlength="1000" rows="3"></textarea></div>
+      <fieldset id="missionInventory" class="inventory">
+        <legend>Onboard resources</legend>
+        <p>List what is usable aboard the spacecraft. Include quantities, locations, restrictions, and checklist references where relevant.</p>
+        <div class="mission-form-grid">
+          <div class="field"><label for="inventoryFood">Food and nutrition</label><textarea id="inventoryFood" name="food" rows="3" maxlength="1200" placeholder="Available meals, shelf life, allergies, dietary limits"></textarea></div>
+          <div class="field"><label for="inventoryWater">Water and drinks</label><textarea id="inventoryWater" name="water" rows="3" maxlength="1200" placeholder="Potable water, drink supplies, ration limits"></textarea></div>
+          <div class="field"><label for="inventoryMedical">Medical supplies and treatment capabilities</label><textarea id="inventoryMedical" name="medical" rows="3" maxlength="1800" placeholder="Medication and kit inventory, oxygen equipment, expiry dates, authorized operators"></textarea></div>
+          <div class="field"><label for="inventorySensors">Body sensors and examination tools</label><textarea id="inventorySensors" name="sensors" rows="3" maxlength="1800" placeholder="Device models, measurements, calibration, and spare batteries"></textarea></div>
+          <div class="field"><label for="inventoryEquipment">Vehicle equipment and facilities</label><textarea id="inventoryEquipment" name="equipment" rows="3" maxlength="1200" placeholder="Cabin monitors, power, exercise equipment, and work areas"></textarea></div>
+          <div class="field"><label for="inventoryProcedures">Medical checklists and crew support</label><textarea id="inventoryProcedures" name="procedures" rows="3" maxlength="1200" placeholder="Checklist references, trained crew, and communication limits"></textarea></div>
+        </div>
+        <div class="inventory-checks">
+          <label><input type="checkbox" name="pulseOximeter" value="available"> Usable pulse oximeter</label>
+          <label><input type="checkbox" name="heartRateMonitor" value="available"> Usable heart-rate monitor</label>
+        </div>
+      </fieldset>
+      <button type="submit" id="createMission" class="btn btn-primary">Create mission</button>
+      <p id="missionFormStatus" role="status"></p>
+    </form>
+    <section id="savedMissionPanel" class="card" hidden>
+      <div class="field"><label for="savedMission">Resume a saved mission</label><select id="savedMission"></select></div>
+      <button type="button" id="resumeMission" class="btn">Open mission</button>
+    </section>
+  </section>
+  <section id="wearableView" class="portal-view" hidden>
+    <button type="button" class="btn" id="wearableBack">Back</button>
+    <h1>Connect wearable device</h1>
+    <div class="card">
+      <p>Use a Bluetooth Low Energy device that broadcasts the standard Heart Rate Service. Enable heart-rate broadcasting on the device first.</p>
+      <div class="portal-actions">
+        <button type="button" id="pairWearable" class="btn btn-primary">Choose device</button>
+        <button type="button" id="reconnectWearable" class="btn" disabled>Reconnect</button>
+        <button type="button" id="disconnectWearable" class="btn" disabled>Disconnect</button>
+      </div>
+      <p id="wearableStatus" role="status">No device connected.</p>
+      <p id="wearableReading">Live heart rate · —</p>
+      <button type="button" id="useLiveInMissionConsole" class="btn" hidden disabled>Add latest resting heart rate to New Mission</button>
+      <div class="portal-actions">
+        <button type="button" id="recordWearable" class="btn" disabled>Start recording</button>
+        <button type="button" id="exportWearable" class="btn">Export readings</button>
+      </div>
+      <p id="wearableRecordStatus" role="status"></p>
+    </div>
+    <div class="card">
+      <h2>Import watch readings</h2>
+      <p>Choose Apple Health export.xml, a TCX activity with heart-rate samples, or a compatible CSV or CREW CHECK JSON file. Extract the file from its ZIP first.</p>
+      <details>
+        <summary>Which file should I use?</summary>
+        <ul>
+          <li>Apple Watch or another device that syncs to Apple Health: export Health data on your iPhone, then select export.xml.</li>
+          <li>Garmin or another activity app that offers TCX: export one activity that includes heart rate.</li>
+          <li>Other watches: use a per-reading export from the companion app. For CSV, use timestamp plus heartRate (bpm) or spo2 (percent). Each timestamp must include a time zone. Daily averages are not individual readings.</li>
+        </ul>
+      </details>
+      <div class="field"><label for="wearableImport">Readings file · up to 30 MB</label><input id="wearableImport" type="file" accept=".xml,.tcx,.csv,.json"></div>
+      <button type="button" id="saveImportedWearable" class="btn" disabled>Save imported readings</button>
+      <p id="wearableImportStatus" role="status">Files are read on this device.</p>
+      <div id="savedWearablePanel" class="field" hidden>
+        <label for="savedWearableReading">Recent saved readings · UTC</label>
+        <select id="savedWearableReading"></select>
+        <button type="button" id="useSavedWearable" class="btn" hidden>Use selected reading in current check-in</button>
+        <p id="savedWearableHint" hidden>Choose a reading from the current mission day and confirm the recorded activity before saving the check-in.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="consoleView" hidden>
+<nav class="console-navigation" aria-label="Workspace navigation">
+  <button type="button" class="btn" data-open="home">Home</button>
+  <strong id="consoleMode"></strong>
+  <button type="button" class="btn" id="missionWearable" data-open="wearable" hidden>Connect wearable device</button>
+  <button type="button" class="btn" id="captureWearable" hidden disabled>Use latest heart rate</button>
+  <p id="missionWearableStatus" role="status" hidden></p>
+</nav>
+<details id="missionProfile" class="replay-banner card" hidden>
+  <summary>Mission details</summary>
+  <dl id="missionProfileFields"></dl>
+  <button type="button" class="btn" id="editInventory">Edit onboard resources</button>
+  <form id="editInventoryForm" hidden>
+    <button type="submit" id="saveInventory" class="btn btn-primary">Save resources</button>
+    <button type="button" id="cancelInventory" class="btn">Cancel</button>
+    <p id="inventoryStatus" role="status"></p>
+  </form>
+</details>
+<section id="i4Replay" class="replay-banner card" hidden>
+  <h2>Inspiration4 mission playback</h2>
+  <div class="field"><label for="i4Day">Mission day · Eastern time</label><select id="i4Day">
+    <option value="1">September 15 · Launch</option><option value="2">September 16 · In orbit</option>
+    <option value="3">September 17 · In orbit</option><option value="4">September 18 · Splashdown</option>
+  </select></div>
+  <p id="i4MilestoneText"></p>
+  <p id="i4DataStatus" role="status"></p>
+  <p><a href="https://www.spacex.com/launches/inspiration4/">SpaceX mission timeline</a> · <a href="https://www.nasa.gov/osdr-latest-news-i4-mission-datasets/">NASA research archive</a></p>
+</section>
 <header class="topbar">
   <div class="brand">
     <div class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13"/><path d="M11 16h10M16 11v10"/></svg>
+      <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13"/><path d="M10 16h12M16 10v12"/></svg>
     </div>
     <div class="brand-text">
       <h1>CREW&nbsp;CHECK</h1>
@@ -21,16 +158,16 @@
     </div>
   </div>
 
-  <div class="mission-strip" aria-label="Mission status">
-    <div class="stat"><span class="stat-k">Crew</span><span class="stat-v" id="crewOut">—</span></div>
-    <div class="stat"><span class="stat-k">Mission</span><span class="stat-v" id="missionOut">—</span></div>
-    <div class="stat"><span class="stat-k">Flight day</span><span class="stat-v" id="dayOut">—</span></div>
-    <div class="stat"><span class="stat-k">Baseline</span><span class="stat-v" id="baselineOut">—</span></div>
+  <div class="mission-strip">
+    <div class="stat"><span class="stat-k">Mission</span><span class="stat-v" id="missionName">—</span></div>
+    <div class="stat"><span class="stat-k">Flight day</span><span class="stat-v" id="flightDayOut">—</span></div>
+    <div class="stat"><span class="stat-k">Cum. dose</span><span class="stat-v" id="doseOut">—</span></div>
+    <div class="stat"><span class="stat-k">Sleep debt · 7d</span><span class="stat-v" id="sleepDebtOut">—</span></div>
   </div>
 
   <div class="readiness">
-    <div class="ring-wrap" aria-hidden="true">
-      <svg class="ring" viewBox="0 0 100 100">
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
         <circle cx="50" cy="50" r="42" class="ring-track"></circle>
         <circle cx="50" cy="50" r="42" class="ring-fill" id="readinessRing"></circle>
       </svg>
@@ -39,129 +176,89 @@
         <small>readiness</small>
       </div>
     </div>
-    <div class="status-stack">
-      <div class="status-chip" id="statusChip">NO DATA</div>
-      <div class="status-sub" id="statusSub">no check logged</div>
-    </div>
+    <div class="status-chip" id="statusChip">NO DATA</div>
   </div>
 </header>
 
 <main class="shell">
 
-  <!-- ==================== CHECK-IN ==================== -->
+  <!-- ============ CHECK-IN ============ -->
   <aside class="panel checkin-panel">
     <div class="panel-head">
-      <div class="panel-head-text">
-        <h2 id="panelTitle">Check-in</h2>
-        <p class="panel-sub" id="panelSub">Measure, enter, decide.</p>
-      </div>
-      <span class="pill" id="dayPill">—</span>
+      <h2>Daily check-in</h2>
+      <span class="pill" id="dayLabel">FD —</span>
     </div>
 
     <div class="panel-body">
+      <div class="field">
+        <label for="crewName">Crew member</label>
+        <input id="crewName" type="text" maxlength="24" autocomplete="off" placeholder="CDR-1">
+      </div>
 
-      <!-- ---------- one-time record setup ---------- -->
-      <form id="setupForm" class="setup" hidden novalidate>
-        <p class="lede">This tool keeps one crew member's record on this device. Nothing is uploaded.</p>
+      <div class="field">
+        <label for="readingSource">Reading source</label>
+        <select id="readingSource">
+          <option value="measured">Measured</option>
+          <option value="simulated">Simulated</option>
+          <option value="digitized">Digitized historical data</option>
+          <option value="unknown">Unspecified</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="readingActivity">Activity during vital readings</label>
+        <select id="readingActivity">
+          <option value="unknown">Unspecified</option>
+          <option value="rest">At rest</option>
+          <option value="exercise">During or just after exercise</option>
+        </select>
+      </div>
+      <div id="metricList" class="metric-list"></div>
 
-        <label class="field">
-          <span>Callsign <b class="req" aria-hidden="true">*</b></span>
-          <input id="setupCrew" type="text" maxlength="24" autocomplete="off" spellcheck="false"
-                 placeholder="e.g. CDR-1" required>
-          <em class="field-hint">Used on every handover report. No real name required.</em>
-        </label>
+      <p class="section-label">Self-reported symptoms</p>
+      <div id="symptomList" class="symptom-list"></div>
 
-        <label class="field">
-          <span>Mission</span>
-          <input id="setupMission" type="text" maxlength="40" autocomplete="off" spellcheck="false"
-                 placeholder="e.g. ARTEMIS VII">
-        </label>
+      <div class="field">
+        <label for="noteInput">Note <span class="muted">(optional)</span></label>
+        <textarea id="noteInput" rows="2" maxlength="240" placeholder="EVA today, headache after a short sleep shift…"></textarea>
+      </div>
 
-        <label class="field">
-          <span>Launch date <em class="muted">(optional)</em></span>
-          <input id="setupStart" type="date">
-          <em class="field-hint">Flight day 1 is launch day. Checks dated before it count as preflight baseline.</em>
-        </label>
+      <div class="checkin-actions">
+        <button id="saveBtn" class="btn btn-primary">Save check-in</button>
+        <button id="nextDayBtn" class="btn">Next flight day</button>
+      </div>
+      <p class="save-state" id="saveState"></p>
 
-        <div id="setupProfile"></div>
-
-        <div class="setup-baseline">
-          <p class="section-label">Preflight baseline <em class="muted">(optional, but this is what makes change visible)</em></p>
-          <p class="field-hint">Enter your usual pre-launch values. Leave anything blank if you do not have it — blank is not zero, and a missing baseline simply switches that indicator's change-detection off.</p>
-          <div id="setupBaseline" class="baseline-grid"></div>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-lg btn-block">Start my record</button>
-        <p class="save-state" id="setupState" role="alert"></p>
-      </form>
-
-      <!-- ---------- the check itself ---------- -->
-      <form id="checkForm" class="checkform" hidden novalidate>
-        <div class="check-tools">
-          <button type="button" id="copyLastBtn" class="btn btn-quiet btn-sm" disabled>Copy last check</button>
-          <label class="switch">
-            <input type="checkbox" id="preflightToggle">
-            <span>Preflight check</span>
-          </label>
-        </div>
-
-        <div id="formHost"></div>
-
-        <fieldset class="symptom-field">
-          <legend class="section-label">Symptoms <em class="muted">select all that apply</em></legend>
-          <div id="symptomList" class="chip-row"></div>
-        </fieldset>
-
-        <label class="field">
-          <span>Note <em class="muted">(optional)</em></span>
-          <textarea id="noteInput" rows="2" maxlength="240"
-                    placeholder="EVA yesterday, short sleep shift, reduced appetite…"></textarea>
-        </label>
-
-        <div class="req-meter" id="reqMeter" aria-live="polite"></div>
-
-        <div class="check-actions">
-          <button type="submit" id="runBtn" class="btn btn-primary btn-lg" disabled>Run check</button>
-          <button type="button" id="clearBtn" class="btn btn-quiet">Clear</button>
-        </div>
-        <p class="save-state" id="saveState" role="status"></p>
-      </form>
-
+      <p class="section-label">Demo conditions</p>
+      <div class="scenario-row" id="scenarioRow"></div>
     </div>
   </aside>
 
-  <!-- ==================== WORKSPACE ==================== -->
+  <!-- ============ WORKSPACE ============ -->
   <section class="panel workspace">
     <div class="workspace-head">
-      <nav class="tabs" role="tablist" aria-label="Crew console views">
-        <button class="tab is-active" data-tab="assessment" role="tab" aria-selected="true">Assessment</button>
-        <button class="tab" data-tab="systems" role="tab" aria-selected="false">Systems</button>
-        <button class="tab" data-tab="assistant" role="tab" aria-selected="false">Assistant</button>
-        <button class="tab" data-tab="record" role="tab" aria-selected="false">Record</button>
-        <button class="tab" data-tab="baseline" role="tab" aria-selected="false">Baseline</button>
-        <button class="tab" data-tab="mission" role="tab" aria-selected="false">Mission</button>
-        <button class="tab" data-tab="reference" role="tab" aria-selected="false">Reference</button>
+      <nav class="tabs" role="tablist" aria-label="Console views">
+        <button class="tab is-active" data-tab="body" role="tab" aria-selected="true">Body map</button>
+        <button class="tab" data-tab="trends" role="tab" aria-selected="false">Trends</button>
+        <button class="tab" data-tab="plan" role="tab" aria-selected="false">Action plan</button>
+        <button class="tab" data-tab="log" role="tab" aria-selected="false">Mission log</button>
       </nav>
-      <div class="workspace-tools" id="recordTools" hidden>
-        <button id="exportBtn" class="btn btn-quiet btn-sm" title="Download the whole record as JSON">Export</button>
-        <button id="importBtn" class="btn btn-quiet btn-sm" title="Load a record from a JSON file">Import</button>
+      <div class="workspace-tools">
+        <button id="demoBtn" class="btn btn-ghost" title="Load the 30-day sample mission">Demo mission</button>
+        <button id="exportBtn" class="btn btn-ghost" title="Download the mission log as JSON">Export</button>
+        <button id="importBtn" class="btn btn-ghost" title="Import a mission log JSON">Import</button>
+        <button id="resetBtn" class="btn btn-ghost" title="Clear the local mission log">Reset</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
     </div>
 
     <div class="panes">
 
-      <!-- ---------- ASSESSMENT ---------- -->
-      <div class="pane is-active" data-pane="assessment" role="tabpanel">
-        <div id="assessBody" aria-live="polite"></div>
-      </div>
-
-      <!-- ---------- SYSTEMS ---------- -->
-      <div class="pane" data-pane="systems" role="tabpanel">
+      <!-- BODY MAP -->
+      <div class="pane is-active" data-pane="body">
         <div class="body-layout">
           <div class="body-figure-wrap">
             <div id="bodyMap" class="body-map"></div>
-            <p class="figure-hint">Tap a system to inspect it</p>
+            <p class="figure-hint">Tap a hotspot to inspect that system</p>
           </div>
           <div class="system-column">
             <div id="systemList" class="system-list"></div>
@@ -170,117 +267,115 @@
         <div id="systemDetail" class="system-detail"></div>
       </div>
 
-      <!-- ---------- ASSISTANT ---------- -->
-      <div class="pane" data-pane="assistant" role="tabpanel">
+      <!-- TRENDS -->
+      <div class="pane" data-pane="trends">
         <div class="pane-head">
-          <div>
-            <h2>Mission health assistant</h2>
-            <p class="muted">Ask about your own readings, symptoms, sleep, recovery, or mission medical operations. Off-topic requests are refused.</p>
-          </div>
-          <span class="ai-state" id="assistState">checking\u2026</span>
+          <h2>Readiness over the mission</h2>
+          <p class="muted" id="trendSummary">—</p>
         </div>
+        <div class="card chart-card" id="readinessChart"></div>
+        <div class="trend-grid" id="trendGrid"></div>
+      </div>
 
-        <div class="assist-grid">
-          <section class="card assist-ask">
-            <h4>Ask a question</h4>
-            <p class="assist-notice" id="assistNotice" role="status" hidden></p>
-            <form id="askForm">
-              <label class="field">
-                <span>Your question <em class="muted">(mission health only)</em></span>
-                <textarea id="askInput" rows="3" maxlength="400"
-                          placeholder="For example: my systolic blood pressure is above my baseline — what should I re-measure?"></textarea>
-              </label>
-              <div class="card-actions">
-                <button type="submit" id="askBtn" class="btn btn-primary" disabled>Ask the assistant</button>
-                <button type="button" id="askClear" class="btn btn-quiet">Clear conversation</button>
-              </div>
-            </form>
-            <p class="field-hint">One question is sent at a time. Earlier turns are not sent with it, and the assistant never receives a credential.</p>
-            <div class="ask-suggestions">
-              <p class="section-label">Suggested questions</p>
-              <div id="askChips" class="chip-row">
-                <button type="button" class="chip-btn" data-question="My systolic blood pressure is above my baseline. What should I check first?">Blood pressure above baseline</button>
-                <button type="button" class="chip-btn" data-question="What should I re-measure after a spacewalk?">What to re-measure after a spacewalk</button>
-                <button type="button" class="chip-btn" data-question="When should I contact the flight surgeon?">When to contact the flight surgeon</button>
-                <button type="button" class="chip-btn" data-question="How should I describe this check in the handover report?">How to describe this in a handover</button>
-              </div>
+      <!-- ACTION PLAN -->
+      <div class="pane" data-pane="plan">
+        <div class="plan-columns">
+          <aside id="crewSuggestion" class="card crew-suggestion" aria-labelledby="crewSuggestionTitle">
+            <h3 id="crewSuggestionTitle">Crew Suggestion</h3>
+            <div id="crewSuggestionContent" aria-live="polite">
+              <h4>What is happening now</h4>
+              <p id="crewSituation"></p>
+              <h4>What to do next</h4>
+              <p id="crewNextStep"></p>
+              <p id="crewResourceStep" hidden></p>
             </div>
-          </section>
-
-          <section class="card assist-thread-card">
-            <div class="card-head">
-              <h4>Conversation</h4>
-              <span class="muted small">last six messages</span>
+            <div id="optionalAiControls" hidden>
+            <div id="geminiReview">
+              <button type="button" id="runGemini" class="btn btn-primary">Analyze mission with AI</button>
+              <p id="geminiStatus" role="status">Cloud AI reviews finding categories from the simulated check-in.</p>
+              <ol id="geminiFindings" hidden></ol>
+              <p id="geminiClarification" hidden></p>
             </div>
-            <div id="askThread" class="ask-thread"></div>
-          </section>
-        </div>
-
-        <div id="assistReview"></div>
-      </div>
-
-      <!-- ---------- RECORD ---------- -->
-      <div class="pane" data-pane="record" role="tabpanel">
-        <div class="pane-head">
-          <div>
-            <h2>Check record</h2>
-            <p class="muted" id="recordSummary">—</p>
+            <details>
+            <summary>Optional local Qwen3</summary>
+            <button type="button" id="runLocalAI" class="btn">Highlight with local AI</button>
+            <p id="localAIStatus" role="status">Qwen3 runs on this device. First use on the web downloads about 2.3 GB.</p>
+            <details id="localAIHelp">
+              <summary>How to start local AI</summary>
+              <p>On Windows, double-click <strong>Start-Crew-Check.cmd</strong> in the extracted project folder. It downloads missing files, starts the server, and opens your browser.</p>
+              <p>Manual setup:</p>
+              <ol>
+                <li>Open a terminal in the extracted CREW CHECK project folder.</li>
+                <li>While online, run <code>node scripts/prepare-offline-ai.js</code> and wait for “Offline assets ready.”</li>
+                <li>Run <code>node server.js</code> and leave the terminal open.</li>
+                <li>Open <a href="http://localhost:8080/">http://localhost:8080/</a> in a WebGPU-enabled browser, then choose <strong>Health Monitoring System → Action plan → Highlight with local AI</strong>.</li>
+              </ol>
+              <p>On the hosted HTTPS version, the first click downloads the model in the background and displays progress here.</p>
+            </details>
+            <p id="localAIFocus" hidden></p>
+            </details>
+            </div>
+          </aside>
+          <div class="plan-evidence">
+            <div id="healthDetection" class="card alert-card" aria-live="polite"></div>
+            <details id="groundReview" class="card alert-card" hidden>
+              <summary>Review ground handoff</summary>
+              <p>Review the draft and copy it into the mission’s approved private medical channel when appropriate. The demo has no connection to NASA.</p>
+              <div class="field">
+                <label for="groundReport">Handoff draft</label>
+                <textarea id="groundReport" rows="9" readonly></textarea>
+              </div>
+            </details>
+            <div id="planSummary" class="plan-summary"></div>
+            <div id="alertBlock"></div>
+            <div id="planList" class="plan-list"></div>
           </div>
         </div>
-        <div id="recordBody"></div>
       </div>
 
-      <!-- ---------- BASELINE ---------- -->
-      <div class="pane" data-pane="baseline" role="tabpanel">
+      <!-- LOG -->
+      <div class="pane" data-pane="log">
         <div class="pane-head">
-          <div>
-            <h2>Your preflight baseline</h2>
-            <p class="muted" id="baselineSummary">—</p>
-          </div>
+          <h2>Mission log</h2>
+          <p class="muted" id="logCount">—</p>
         </div>
-        <div id="baselineBody"></div>
-      </div>
-
-      <!-- ---------- MISSION ---------- -->
-      <div class="pane" data-pane="mission" role="tabpanel">
-        <div class="pane-head">
-          <div>
-            <h2>Mission configuration</h2>
-            <p class="muted">Name, destination, planned duration, crew size, communication delay, sleep target and instruments. These differ every flight.</p>
-          </div>
+        <div class="table-wrap">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th>FD</th><th>Status</th><th>Readiness</th><th>SYS/DIA</th>
+                <th>HR</th><th>Temp</th><th>Sleep</th><th>SpO₂</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+          </table>
         </div>
-        <div id="missionBody"></div>
-      </div>
-
-      <!-- ---------- FLIGHT REFERENCE ---------- -->
-      <div class="pane" data-pane="reference" role="tabpanel">
-        <div class="pane-head">
-          <div>
-            <h2>Reference</h2>
-            <p class="muted">Published Inspiration4 blood panels and the NASA standards this tool is aligned to. Reference only \u2014 not your assessment.</p>
-          </div>
-        </div>
-        <div id="refBody"></div>
       </div>
 
     </div>
   </section>
 </main>
+</div>
 
 <footer class="footer">
-  <span>CREW CHECK · rule-based decision support. <strong>Not a medical device.</strong> Every escalation is a prompt to involve the flight surgeon.</span>
-  <span class="muted" id="footerSrc">Offline · your record never leaves this device</span>
+  <span>CREW CHECK · prototype built for the NASA Space Apps Challenge · rule-based decision support, <strong>not a medical device</strong></span>
+  <span class="muted">Offline-capable · no network required</span>
 </footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
+<script src="js/detection.js"></script>
 <script src="js/scoring.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>
 <script src="js/storage.js"></script>
-<script src="js/ai.js"></script>
-<script src="data/i4/i4-missions.js"></script>
+<script src="data/sample-mission.js"></script>
+<script src="data/i4-replay.js"></script>
+<script src="js/wearable.js"></script>
+<script src="js/wearable-files.js"></script>
+<script src="js/local-ai.js"></script>
 <script src="js/app.js"></script>
+<script src="js/portal.js"></script>
 </body>
 </html>
