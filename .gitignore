@@ -64,5 +64,6 @@ jupyter/.ipynb_checkpoints/
 tmp/
 temp/
 ai-assets/
+/deployment/aws/function.zip
 .env
 .env.*

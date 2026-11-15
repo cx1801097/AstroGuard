@@ -5,10 +5,12 @@ const MODEL = 'amazon.nova-micro-v1:0';
 const PROVIDER = 'Amazon Bedrock';
 
 function converseInput(input) {
+  const ids = input.findings.map((_, index) => String(index));
   return {
     system: [{ text: 'Review a simulated astronaut check-in. Sort up to three existing findings, with chest pain first, then alerts, then missing data. Choose one clarification from questions. Return a JSON object only, with priority (an array of one to three finding ID strings) and clarification (one question ID string). Do not add findings, change severity, diagnose or prescribe.' }],
     messages: [{ role: 'user', content: [{ text: JSON.stringify({
-      ...input, findings: input.findings.map((finding, index) => ({ id: String(index), ...finding }))
+      ...input, allowedPriorityIds: ids, maxPriorities: Math.min(ids.length, 3),
+      findings: input.findings.map((finding, index) => ({ id: ids[index], ...finding }))
     }) }] }],
     inferenceConfig: { maxTokens: 120, temperature: 0 }
   };
@@ -17,8 +19,14 @@ function converseInput(input) {
 function readReview(input, response) {
   const content = response.output?.message?.content;
   const answer = content?.map(block => block.text || '').join('').trim();
-  const json = answer?.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? answer;
-  return validateReview(input, JSON.parse(json || 'null'), MODEL, PROVIDER);
+  const fenced = [...(answer || '').matchAll(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/gi)];
+  const json = fenced.length === 1 ? fenced[0][1] : answer;
+  const result = JSON.parse(json || 'null');
+  if (Array.isArray(result?.priority)) {
+    const ids = input.findings.map((_, index) => String(index));
+    result.priority = [...new Set(result.priority.filter(id => ids.includes(id)))].slice(0, 3);
+  }
+  return validateReview(input, result, MODEL, PROVIDER);
 }
 
 function createIamBedrockReview(region, { BedrockRuntimeClient, ConverseCommand }) {
