@@ -519,7 +519,7 @@
     var details = example ? {} : state.mission.details || {};
     if (cloudAIUrl && inSimulator && example) {
       var preset = D.SCENARIOS.nominal;
-      detection = Detection.evaluate({ source: 'simulated', activity: 'rest', values: preset.values });
+      detection = Detection.evaluate({ day: 1, source: 'simulated', activity: 'rest', values: preset.values });
       var demoScore = S.evaluate(preset.values, { activity: 'rest' }, preset.symptoms);
       suggestion = Detection.crewSuggestion(detection, details, preset.symptoms, demoScore.alerts);
     }
