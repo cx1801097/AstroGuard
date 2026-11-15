@@ -13,6 +13,9 @@
   var Store = window.CC_STORAGE;
   var Detection = window.CC_DETECTION;
   var LocalAI = window.CC_LOCAL_AI;
+  var cloudAIUrl = location.origin === 'https://cx1801097.github.io' &&
+    /^https:\/\/[a-z0-9]+\.lambda-url\.ap-southeast-2\.on\.aws\/$/.test(window.CC_CLOUD_AI_URL || '')
+    ? window.CC_CLOUD_AI_URL : '';
 
   /* ---------------- helpers ---------------- */
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -495,7 +498,7 @@
 
   function setGeminiScenario(detection, suggestion) {
     var eligible = state.mode === 'simulator' && detection.source === 'simulated';
-    var available = /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(location.origin);
+    var available = Boolean(cloudAIUrl);
     var panel = $('#geminiReview');
     panel.hidden = !eligible;
     var details = state.mission.details || {};
@@ -513,13 +516,11 @@
     $('#runGemini').disabled = !available || geminiPending;
     $('#geminiFindings').hidden = true;
     $('#geminiClarification').hidden = true;
-    $('#geminiStatus').textContent = available
-      ? 'Cloud AI reviews finding categories from the simulated check-in.'
-      : 'Open CREW CHECK with the Bedrock or Gemini launcher to enable this review.';
+    $('#geminiStatus').textContent = 'Cloud AI reviews finding categories from the simulated check-in.';
   }
 
   async function runGemini() {
-    if ($('#optionalAiControls').hidden || geminiPending || !geminiScenario) return;
+    if (!cloudAIUrl || geminiPending || !geminiScenario) return;
     var reviewing = geminiScenario;
     var button = $('#runGemini');
     var status = $('#geminiStatus');
@@ -531,13 +532,14 @@
     clarification.hidden = true;
     status.textContent = 'AI is reviewing the simulated findings…';
     try {
-      var response = await fetch('/api/cloud-analysis', {
+      var response = await fetch(cloudAIUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reviewing.request), signal: AbortSignal.timeout(22000)
+        body: JSON.stringify(reviewing.request), signal: AbortSignal.timeout(26000),
+        credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error'
       });
       if (reviewing !== geminiScenario) return;
       if (response.status === 404) {
-        status.textContent = 'This server is missing the cloud AI endpoint. Stop the old server and open CREW CHECK with the latest Bedrock or Gemini launcher.';
+        status.textContent = 'The demo AI endpoint is unavailable. Use the crew guidance above.';
         return;
       }
       var result = await response.json();
@@ -998,7 +1000,7 @@
   function boot() {
     buildCheckin();
     bindEvents();
-    if (!$('#optionalAiControls').hidden) localAISetup();
+    $('#optionalAiControls').hidden = !cloudAIUrl;
   }
 
   function open(mode, mission, scope) {
