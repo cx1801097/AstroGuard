@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { evaluate } = require('../js/detection');
+const { evaluate, guidance, reviewReport } = require('../js/detection');
 const fixtures = require('./fixtures/health-cases.json');
 
 function checkIn(day, values, metadata = {}) {
@@ -11,6 +11,32 @@ function checkIn(day, values, metadata = {}) {
 }
 
 const stable = Array.from({ length: 7 }, (_, index) => checkIn(index + 1, { spo2: 98, heartRate: 66 }));
+
+test('critical guidance prioritizes private contact and the report omits flagged values and identity', () => {
+  const current = checkIn(9, { spo2: 86, heartRate: 234 }, {
+    source: 'measured', crew: 'Private Name', note: 'Private note', quality: { heartRate: 'invalid' }
+  });
+  const assessment = evaluate(current);
+  assert.match(guidance(assessment.severity).advice, /approved private medical channel/);
+  assert.match(guidance(assessment.severity).advice, /Do not wait/);
+  const report = reviewReport(current.day, assessment);
+  assert.match(report, /Urgent flight surgeon review/);
+  assert.match(report, /Flight day 9/);
+  assert.match(report, /86%/);
+  assert.match(report, /sensor flagged/);
+  assert.doesNotMatch(report, /234|Private Name|Private note/);
+});
+
+test('warning handoffs label non-measured sources, and routine or incomplete check-ins have no draft', () => {
+  for (const source of ['simulated', 'digitized', 'unknown']) {
+    const assessment = evaluate(checkIn(9, { spo2: 92, heartRate: 72 }, { source }));
+    const report = reviewReport(9, assessment);
+    assert.match(report, /Demonstration or unverified data/);
+    assert.match(report, /review if concern persists/);
+  }
+  assert.equal(reviewReport(9, evaluate(checkIn(9, { spo2: 98, heartRate: 72 }))), '');
+  assert.equal(reviewReport(9, evaluate(checkIn(9, {}))), '');
+});
 
 for (const [name, fixture] of Object.entries(fixtures)) {
   test(name + ': ' + fixture.description, () => {

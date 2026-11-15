@@ -167,7 +167,47 @@
     return { severity, source, activity, quality, baselines, reasons };
   }
 
-  const engine = { evaluate, defaults, sourceLabels, provenance, reading };
+  function guidance(severity) {
+    switch (severity) {
+      case 'CRITICAL':
+        return {
+          priority: 'Urgent flight surgeon review',
+          advice: 'Alert the crew medical officer and use the mission’s approved private medical channel to contact the flight surgeon now. Follow the mission emergency checklist. Do not wait for this report or a repeat reading to contact the crew.'
+        };
+      case 'WARNING':
+        return {
+          priority: 'Flight surgeon review if concern persists',
+          advice: 'Check sensor placement and activity context, then repeat the reading if safe. If the finding persists or symptoms are present, contact the crew medical officer or flight surgeon through the approved private channel.'
+        };
+      case 'UNKNOWN':
+        return {
+          advice: 'Check sensor quality, enter any missing readings, and record the activity. If the crew member feels unwell, contact the crew medical officer without waiting for readings.'
+        };
+      default:
+        return {
+          advice: 'Continue the scheduled check-ins. Report new symptoms through the mission’s usual medical process.'
+        };
+    }
+  }
+
+  function reviewReport(day, assessment) {
+    const { priority } = guidance(assessment.severity);
+    if (!priority) return '';
+    const heading = assessment.source === 'measured'
+      ? 'CREW CHECK | Draft for crew review'
+      : 'CREW CHECK | Demonstration or unverified data — do not use for operational reporting';
+    return [
+      heading,
+      priority,
+      'Flight day ' + (Number.isInteger(day) ? day : 'unspecified'),
+      'Source: ' + sourceLabels[assessment.source],
+      'Activity: ' + assessment.activity,
+      'Prototype detection status: ' + assessment.severity,
+      ...assessment.reasons.map(reason => '- ' + reason)
+    ].join('\n');
+  }
+
+  const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport };
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else window.CC_DETECTION = engine;
 })();

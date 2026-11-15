@@ -411,13 +411,18 @@
   function renderPlan() {
     var r = state.result;
     var detection = Detection.evaluate(detectionInput(), state.mission.entries);
+    var guidance = Detection.guidance(detection.severity);
     var tones = { NORMAL: 'is-go', WARNING: 'is-caution', CRITICAL: 'is-nogo' };
     $('#healthDetection').innerHTML =
       '<h4>Vital-sign detection <span class="chip ' + (tones[detection.severity] || '') + '">' +
       esc(detection.severity) + '</span></h4><p>' + esc(Detection.sourceLabels[detection.source]) +
       '</p><ul>' + detection.reasons.map(function (reason) {
         return '<li>' + esc(reason) + '</li>';
-      }).join('') + '</ul>';
+      }).join('') + '</ul><p><strong>Crew guidance</strong> ' + esc(guidance.advice) + '</p>';
+    var report = Detection.reviewReport(state.mission.flightDay, detection);
+    $('#groundReview').hidden = !report;
+    if (!report) $('#groundReview').open = false;
+    $('#groundReport').value = report;
     var sorted = D.SYSTEMS.slice().sort(function (a, b) {
       return r.systems[b.id].severity - r.systems[a.id].severity;
     });

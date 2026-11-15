@@ -290,15 +290,15 @@ window.CC_DATA = (function () {
       0: ['Maintain daily aerobic + resistance exercise per the countermeasure prescription.', 'Log orthostatic symptoms honestly, especially after EVA or before return.'],
       1: ['Increase exercise volume slightly; review salt and fluid intake.'],
       2: ['Repeat BP after 5 min seated rest; confirm cuff and technique.', 'Escalate to the crew surgeon if it persists past 48 h.'],
-      3: ['Alert the flight surgeon; run an orthostatic stand test and a rhythm check.', 'Suspend EVA until reviewed; consider IV fluid bolus per CMO guidance.'],
+      3: ['Contact the flight surgeon and follow the mission’s cardiovascular checklist.'],
       4: ['Emergency: chest pain or crisis-range BP \u2014 stop activity, alert crew, contact the flight surgeon now.', 'Prepare for medical evacuation planning if the mission profile allows.']
     },
     respiratory: {
       0: ['No action; continue routine monitoring.'],
       1: ['Repeat SpO\u2082 at rest and verify sensor placement.'],
       2: ['Rest 10 min and re-measure; check cabin pressure and CO\u2082 levels.'],
-      3: ['Supplemental O\u2082 and crew surgeon notification; abort the current EVA.'],
-      4: ['Emergency O\u2082, abort activity, alert crew and the flight surgeon.']
+      3: ['Contact the crew medical officer or flight surgeon for review; follow the mission’s respiratory checklist.'],
+      4: ['Alert the crew and flight surgeon now through the approved private medical channel; follow the mission emergency checklist.']
     },
     metabolic: {
       0: ['Balanced intake and hydration; log meals.'],

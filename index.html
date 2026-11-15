@@ -142,6 +142,14 @@
       <!-- ACTION PLAN -->
       <div class="pane" data-pane="plan">
         <div id="healthDetection" class="card alert-card" aria-live="polite"></div>
+        <details id="groundReview" class="card alert-card" hidden>
+          <summary>Review ground handoff</summary>
+          <p>Review the draft and copy it into the mission’s approved private medical channel when appropriate. The demo has no connection to NASA.</p>
+          <div class="field">
+            <label for="groundReport">Handoff draft</label>
+            <textarea id="groundReport" rows="9" readonly></textarea>
+          </div>
+        </details>
         <div id="planSummary" class="plan-summary"></div>
         <div id="alertBlock"></div>
         <div id="planList" class="plan-list"></div>
