@@ -370,16 +370,50 @@ input[type="range"]::-moz-range-thumb {
 .pane { display: none; }
 .pane.is-active { display: block; animation: fade 0.25s ease; }
 [hidden] { display: none !important; }
+
+.i4-table-scroll { overflow: auto; max-height: 28rem; margin: .75rem 0; }
+.i4-record-table { width: 100%; border-collapse: collapse; text-align: left; }
+.i4-record-table th, .i4-record-table td { padding: .55rem .75rem; border-bottom: 1px solid rgba(125,147,173,.25); }
+.i4-record-table th { position: sticky; top: 0; background: #101b29; }
+.i4-timeline, .i4-metrics, .i4-insights { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin: .85rem 0; }
+.i4-timeline button { display: flex; flex-direction: column; align-items: start; gap: .3rem; text-align: left; }
+.i4-timeline button[aria-pressed="true"] { border-color: var(--cyan); background: #112b3e; }
+.i4-timeline span, .i4-metric span { color: var(--muted); }
+.i4-overview { padding: 1rem; min-width: 0; }
+.i4-overview-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; }
+.i4-overview h4 { margin: 0 0 .4rem; }
+.i4-insights { grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); }
+.i4-metric { border: 1px solid rgba(125,147,173,.3); border-radius: .65rem; padding: .75rem; }
+.i4-metric strong, .i4-metric span { display: block; }
+.i4-metric strong { margin: .45rem 0; }
+#i4SourceRecords { margin-top: 1rem; }
+#i4SourceRecords summary { cursor: pointer; }
+#i4Records, .i4-context-content { padding: 16px; }
+.i4-view-tabs, #i4Trends > section { margin-bottom: .8rem; }
+#i4Hazards { margin-top: .8rem; }
+.i4-hazard { border: 1px solid var(--line); border-radius: .65rem; padding: .9rem; }
+.i4-hazard h5 { margin: 0 0 .5rem; font-size: 1rem; }
+.i4-hazard p { margin: .65rem 0; }
+.i4-filter-row { display: flex; flex-wrap: wrap; gap: .8rem; }
+.i4-filter-row .field { min-width: min(100%, 180px); }
+#i4CabinTrend, #i4LabTrend, #i4CompareTrend { overflow-x: auto; }
+.i4-axis-chart { width: 100%; min-width: 460px; height: auto; min-height: 145px; }
+.i4-axis-chart text { fill: var(--muted); font-size: 12px; }
+#i4PlanEvidence { padding-left: 1.35rem; }
+#i4PlanEvidence li { margin-bottom: .45rem; }
+.i4-context-content dd { margin: .25rem 0 1rem; color: var(--muted); }
+.replay-no-data.replay-mode .workspace { min-height: 0; }
+.hazard-inputs { margin: 1rem 0; }
+.hazard-inputs summary { cursor: pointer; }
+#hazardResults li { margin-bottom: .7rem; }
 .portal { max-width: 980px; margin: 0 auto; padding: clamp(24px, 7vw, 88px) 20px 32px; }
 .portal-view > h1 { font-size: clamp(30px, 6vw, 64px); letter-spacing: -0.04em; margin: 14px 0 6px; }
 .portal-view > p { color: var(--text-dim); max-width: 55ch; }
 .portal-options, .mission-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .portal-options { margin-top: 26px; }
-.portal:has(#missionConsoleView:not([hidden])), .portal:has(#offlineBuildView:not([hidden])) { max-width: none; padding: 12px 16px 24px; }
-#missionConsoleView > h1, #offlineBuildView > h1 { font-size: clamp(24px, 4vw, 40px); margin: 8px 0 14px; }
-#missionConsoleFrame, #offlineBuildFrame { display: block; width: 100%; height: 83vh; min-height: 540px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.portal-option-wide { grid-column: 1 / -1; }
-a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+.portal:has(#missionConsoleView:not([hidden])) { max-width: none; padding: 12px 16px 24px; }
+#missionConsoleView > h1 { font-size: clamp(24px, 4vw, 40px); margin: 8px 0 14px; }
+#missionConsoleFrame { display: block; width: 100%; height: 83vh; min-height: 540px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .portal-option { display: grid; gap: 8px; padding: 20px; color: var(--text); text-align: left; cursor: pointer; }
 .portal-option strong { font-size: 18px; }
 .portal-option span { color: var(--text-dim); }
@@ -419,6 +453,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 #missionProfileFields dt { color: var(--muted); }
 #missionProfileFields dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .replay-no-data.replay-mode .panes, .replay-no-data.replay-mode .readiness,
+.replay-no-data.replay-mode .workspace-head, .replay-no-data.replay-mode .checkin-panel,
 .replay-mode .workspace-tools, .replay-mode .checkin-actions, .replay-mode .row-actions,
 .replay-mode #scenarioRow, .replay-mode #planList, .replay-mode #planSummary,
 .mission-mode #demoBtn, .mission-mode #resetBtn, .mission-mode #importBtn, .mission-mode #scenarioRow,

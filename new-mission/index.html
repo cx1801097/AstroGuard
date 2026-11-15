@@ -106,6 +106,12 @@
         </div>
 
         <div id="formHost"></div>
+        <details class="form-group">
+          <summary>Hazard monitoring readings</summary>
+          <p class="field-hint">Enter verified cabin and lab readings. White blood cells are entered in the blood panel. The preview updates as you type.</p>
+          <div id="missionHazardInputs" class="group-grid"></div>
+          <div id="missionHazardPreview" aria-label="Draft hazard checks"></div>
+        </details>
 
         <fieldset class="symptom-field">
           <legend class="section-label">Symptoms <em class="muted">select all that apply</em></legend>
@@ -280,6 +286,8 @@
 <script src="js/body-map.js"></script>
 <script src="js/storage.js"></script>
 <script src="data/i4/i4-missions.js"></script>
+<script src="../js/astroguard-evidence.js"></script>
+<script src="../js/hazard-monitor.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

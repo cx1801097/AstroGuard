@@ -12,10 +12,12 @@
   var Body = window.CC_BODYMAP;
   var Store = window.CC_STORAGE;
   var Detection = window.CC_DETECTION;
+  var Hazards = window.CC_HAZARDS;
   var LocalAI = window.CC_LOCAL_AI;
   var cloudAIUrl = location.origin === 'https://cx1801097.github.io' &&
     /^https:\/\/[a-z0-9]+\.lambda-url\.ap-southeast-2\.on\.aws\/$/.test(window.CC_CLOUD_AI_URL || '')
-    ? window.CC_CLOUD_AI_URL : '';
+    ? window.CC_CLOUD_AI_URL
+    : /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(location.origin) ? '/api/cloud-analysis' : '';
 
   /* ---------------- helpers ---------------- */
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -216,6 +218,7 @@
     $('#readingSource').value = state.source;
     $('#readingActivity').value = state.activity;
     D.METRICS.forEach(syncMetricInput);
+    Hazards?.sync($('#hazardInputs'), state.draft);
     $$('#symptomList .symptom-chip').forEach(function (btn) {
       var on = state.symptoms.indexOf(btn.getAttribute('data-symptom')) >= 0;
       btn.classList.toggle('is-on', on);
@@ -431,6 +434,7 @@
     $('#crewNextStep').textContent = suggestion.next;
     $('#crewResourceStep').textContent = suggestion.resource;
     $('#crewResourceStep').hidden = !suggestion.resource;
+    if (state.mode !== 'replay') window.CC_RENDER_EVIDENCE?.($('#astroguardEvidence'), suggestion.severity);
     var tones = { NORMAL: 'is-go', WARNING: 'is-caution', CRITICAL: 'is-nogo' };
     $('#healthDetection').innerHTML =
       '<h4>Vital-sign detection <span class="chip ' + (tones[detection.severity] || '') + '">' +
@@ -438,6 +442,10 @@
       '</p><ul>' + detection.reasons.map(function (reason) {
         return '<li>' + esc(reason) + '</li>';
       }).join('') + '</ul>';
+    $('#hazardReview').hidden = state.mode === 'replay' || !Hazards;
+    if (!$('#hazardReview').hidden) Hazards.render($('#hazardResults'), {
+      ...detectionInput(), sleepTarget: 7.5, history: state.mission.entries
+    });
     var reportAssessment = state.symptoms.includes('chestPain')
       ? Object.assign({}, detection, { severity: 'CRITICAL', reasons: ['Chest pain or pressure was reported.'].concat(detection.reasons) })
       : detection;
@@ -495,41 +503,44 @@
   var aiObservations = [];
   var geminiScenario;
   var geminiPending = false;
+  var programFallback = 'Using CREW CHECK’s rule-based guidance above.';
 
   function setGeminiScenario(detection, suggestion) {
     var inSimulator = state.mode === 'simulator';
     var example = detection.source !== 'simulated';
-    var panel = $('#geminiReview');
-    panel.hidden = !inSimulator;
     var details = example ? {} : state.mission.details || {};
-    if (inSimulator && example) {
+    if (cloudAIUrl && inSimulator && example) {
       var preset = D.SCENARIOS.nominal;
       detection = Detection.evaluate({ source: 'simulated', activity: 'rest', values: preset.values });
       suggestion = Detection.crewSuggestion(detection, details, preset.symptoms);
     }
-    var next = inSimulator ? {
+    var canReview = inSimulator && Boolean(cloudAIUrl) && suggestion.severity !== 'UNKNOWN' &&
+      suggestion.findingCodes.length > 0;
+    var next = {
       example: example,
-      request: {
+      request: canReview ? {
         source: detection.source, severity: suggestion.severity, phase: details.phase,
         findings: suggestion.findingCodes,
         pulseOximeter: details.pulseOximeter === 'available',
         heartRateMonitor: details.heartRateMonitor === 'available'
-      },
-      observations: suggestion.observations
-    } : null;
+      } : null,
+      observations: canReview ? suggestion.observations : [],
+      status: !inSimulator ? 'AI review is limited to the simulated demo.' :
+        !cloudAIUrl ? 'Cloud AI is unavailable in this edition.' :
+        !canReview ? 'The simulated check-in has too little usable data for AI review.' :
+        example ? 'A separate simulated example is available.' : 'AI review is available for this simulated check-in.'
+    };
     if (JSON.stringify(next) === JSON.stringify(geminiScenario)) return;
     geminiScenario = next;
-    $('#runGemini').disabled = !cloudAIUrl || geminiPending;
+    $('#runGemini').disabled = !next.request || geminiPending;
     $('#runGemini').textContent = example ? 'Analyze a demo example with AI' : 'Analyze mission with AI';
     $('#geminiFindings').hidden = true;
     $('#geminiClarification').hidden = true;
-    $('#geminiStatus').textContent = example
-      ? 'Try a built-in simulated example. Your current check-in stays on this device.'
-      : 'Cloud AI reviews finding categories from the simulated check-in.';
+    $('#geminiStatus').textContent = next.status + ' ' + programFallback;
   }
 
   async function runGemini() {
-    if (!cloudAIUrl || geminiPending || !geminiScenario) return;
+    if (geminiPending || !geminiScenario?.request) return;
     var reviewing = geminiScenario;
     var button = $('#runGemini');
     var status = $('#geminiStatus');
@@ -539,7 +550,7 @@
     button.disabled = true;
     findings.hidden = true;
     clarification.hidden = true;
-    status.textContent = 'AI is reviewing the simulated findings…';
+    status.textContent = 'AI is reviewing the simulated findings. ' + programFallback;
     try {
       var response = await fetch(cloudAIUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -547,14 +558,17 @@
         credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error'
       });
       if (reviewing !== geminiScenario) return;
-      if (response.status === 404) {
-        status.textContent = 'The demo AI endpoint is unavailable. Use the crew guidance above.';
-        return;
-      }
       var result = await response.json();
       if (reviewing !== geminiScenario) return;
       if (!response.ok) {
-        status.textContent = result.error;
+        status.textContent = (typeof result.error === 'string' ? result.error : 'The AI review is unavailable.') + ' ' + programFallback;
+        return;
+      }
+      if (!Array.isArray(result.priority) || !result.priority.length || result.priority.length > 3 ||
+          new Set(result.priority).size !== result.priority.length ||
+          result.priority.some(index => !Number.isInteger(index) || index < 0 || index >= reviewing.observations.length) ||
+          typeof result.clarification !== 'string') {
+        status.textContent = 'AI returned no usable review. ' + programFallback;
         return;
       }
       findings.replaceChildren(...result.priority.map(function (index) {
@@ -568,10 +582,10 @@
       status.textContent = (result.model === 'amazon.nova-micro-v1:0' ? 'Amazon Nova Micro' : 'Gemini 2.5 Flash-Lite') +
         (reviewing.example ? ' · simulated example' : ' · prioritized review');
     } catch {
-      if (reviewing === geminiScenario) status.textContent = 'Cloud AI is unavailable. Use the crew guidance above.';
+      if (reviewing === geminiScenario) status.textContent = 'Cloud AI is unavailable. ' + programFallback;
     } finally {
       geminiPending = false;
-      button.disabled = false;
+      button.disabled = !geminiScenario?.request;
     }
   }
 
@@ -762,6 +776,9 @@
       var v = state.draft[m.id];
       if (v !== undefined) out[m.id] = v;
     });
+    Hazards?.extraFields.forEach(function (key) {
+      if (Number.isFinite(state.draft[key])) out[key] = state.draft[key];
+    });
     return out;
   }
 
@@ -895,10 +912,10 @@
     $('#runGemini').addEventListener('click', runGemini);
     $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */
-    $$('.tab').forEach(function (tab) {
+    $$('[data-tab]').forEach(function (tab) {
       tab.addEventListener('click', function () {
         state.tab = tab.getAttribute('data-tab');
-        $$('.tab').forEach(function (t) {
+        $$('[data-tab]').forEach(function (t) {
           var on = t === tab;
           t.classList.toggle('is-active', on);
           t.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -1009,8 +1026,13 @@
      ============================================================ */
   function boot() {
     buildCheckin();
+    Hazards?.bind($('#hazardInputs'), true, function (key, value) {
+      if (value === null) delete state.draft[key];
+      else state.draft[key] = value;
+      delete state.quality[key];
+      refresh();
+    });
     bindEvents();
-    $('#optionalAiControls').hidden = !cloudAIUrl;
   }
 
   function open(mode, mission, scope) {

@@ -224,6 +224,20 @@
     return entry ? evaluateValues(entry.values, entry) : null;
   }
 
+  function renderHazardCheck(container, entry) {
+    var monitor = window.CC_HAZARDS;
+    if (!monitor || !container) return;
+    var crew = state.record.crewId;
+    var candidate = entry || { values: state.draft, day: nextFlightDay(state.preflight ? 'preflight' : 'flight', nowISO()) };
+    monitor.render(container, {
+      values: candidate.values, source: 'measured', day: state.record.missionStart ? candidate.day : null, crew: crew,
+      sleepTarget: candidate.values.sleepTargetAtCheck ?? profile().sleepTargetHours,
+      history: entries().filter(function (previous) { return previous.phase === 'flight'; }).map(function (previous) {
+        return { day: previous.day, crew: crew, source: 'measured', values: previous.values };
+      })
+    });
+  }
+
   function dayLabel(entry) {
     return Store.dayLabel(entry, state.record.missionStart);
   }
@@ -387,6 +401,8 @@
 
   function syncForm() {
     if (!state.formBuilt || !hasRecord()) return;
+    window.CC_HAZARDS?.sync($('#missionHazardInputs'), state.draft);
+    renderHazardCheck($('#missionHazardPreview'));
 
     $$('#formHost .mrow').forEach(function (row) {
       var id = row.getAttribute('data-metric');
@@ -547,6 +563,10 @@
     var result = evaluateEntry(entry);
     host.innerHTML = strip + '<div class="assessment-columns">' + crewSuggestionCard(entry, result) +
       '<div>' + checkCard(entry, result) + assistantLink() + '</div></div>';
+    var evidenceStatus = { 'GO': 'NORMAL', 'CAUTION': 'WARNING', 'NO-GO': 'CRITICAL', 'NO DATA': 'UNKNOWN' };
+    window.CC_RENDER_EVIDENCE?.(host.querySelector('.astroguard-evidence'),
+      result.emergency ? 'CRITICAL' : evidenceStatus[result.triage] || 'UNKNOWN');
+    renderHazardCheck(host.querySelector('.saved-hazard-results'), entry);
   }
 
   function crewSuggestionCard(entry, result) {
@@ -573,7 +593,9 @@
       (gear.length ? '<p>For the recheck, use the listed ' + esc(gear.join(' and ')) + '.</p>' : '') +
       ((result.emergency || result.triage === 'NO-GO') && inventory.medicalChannel
         ? '<p>Listed private medical channel: ' + esc(inventory.medicalChannel) + '</p>' : '') +
-      '</aside>';
+      '<h4>AI review</h4><p role="status">AI review is limited to the simulated demo. Using CREW CHECK’s rule-based guidance above.</p>' +
+      '<div class="astroguard-evidence" hidden></div><h4>Spaceflight hazard detection</h4>' +
+      '<div class="saved-hazard-results"></div></aside>';
   }
 
   function onboardCard() {
@@ -1999,6 +2021,7 @@
     if (!canRun()) return;
 
     var values = cleanDraft();
+    values.sleepTargetAtCheck = profile().sleepTargetHours;
     var at = nowISO();
     var phase = state.preflight ? 'preflight' : 'flight';
 
@@ -2104,6 +2127,8 @@
     var last = lastEntry();
     if (!last) return;
     state.draft = clone(last.values);
+    window.CC_HAZARDS?.observationFields.forEach(function (id) { delete state.draft[id]; });
+    delete state.draft.sleepTargetAtCheck;
     Object.keys(last.wearable || {}).forEach(function (id) { delete state.draft[id]; });
     state.wearableDraft = {};
     state.confirm = {};
@@ -2474,6 +2499,9 @@
     buildSetupBaseline();
     buildSetupProfile();
     buildForm();
+    window.CC_HAZARDS?.bind($('#missionHazardInputs'), false, function (id, value) {
+      setDraftValue(id, value === null ? '' : String(value));
+    });
     bindEvents();
     renderAll();
 
