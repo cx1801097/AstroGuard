@@ -4,6 +4,8 @@ A visual tool that lets an astronaut **measure their own health indicators, see 
 
 Built for the NASA Space Apps Challenge (Health in Space / long-duration mission crew self-assessment).
 
+**Live demo: <https://cx1801097.github.io/NasaSpaceAppChallangeCCC/>** — no install, opens in any browser, phone included.
+
 > **Not a medical device.** Rule-based decision support for a prototype; every threshold is a published reference range, and every recommendation is a prompt to consult a flight surgeon, not a diagnosis.
 
 ---
@@ -24,6 +26,10 @@ The five hazards from NASA's Human Research Program — **space radiation, isola
 
 ## Run it
 
+**Fastest:** open the live demo — <https://cx1801097.github.io/NasaSpaceAppChallangeCCC/>
+
+**Locally:**
+
 ```powershell
 # simplest: just open the file
 start index.html
@@ -33,6 +39,8 @@ node server.js        # any static server works
 ```
 
 No install, no dependencies. The console boots with a 30-day demo mission so there is always something to look at; press **Reset** to start a real crew record.
+
+Deployment is GitHub Pages from `main` → `/` (root), so any push to `main` redeploys the live demo automatically.
 
 ---
 
