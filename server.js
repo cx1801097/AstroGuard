@@ -9,9 +9,12 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('node:child_process');
 
 const ROOT = __dirname;
-const PORT = Number(process.argv[2] || process.env.PORT || 8080);
+const args = process.argv.slice(2);
+const openBrowser = args.includes('--open');
+const PORT = Number(args.find(arg => arg !== '--open') || process.env.PORT || 8080);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -77,7 +80,19 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.on('error', error => {
+  if (error.code !== 'EADDRINUSE') throw error;
+  console.error('Port ' + PORT + ' is already in use. Close the previous CREW CHECK server and retry.');
+  process.exitCode = 1;
+});
+
+server.listen(PORT, openBrowser ? 'localhost' : undefined, () => {
+  const address = 'http://localhost:' + server.address().port + '/';
   console.log('CREW CHECK serving ' + ROOT);
-  console.log('  http://localhost:' + PORT);
+  console.log('  ' + address);
+  if (openBrowser && process.platform === 'win32') {
+    execFile('rundll32.exe', ['url.dll,FileProtocolHandler', address], { windowsHide: true }, error => {
+      if (error) console.error('Open this address in your browser: ' + address);
+    });
+  }
 });

@@ -146,7 +146,7 @@ The detector executes entirely in the browser, including when run from `index.ht
 
 Open **Action plan → Highlight with local AI** in a WebGPU browser. On GitHub Pages or another HTTPS static host, the first run downloads the WebLLM runtime and the Qwen3 4B model (about 2.3 GB). Inference happens in a browser worker. No cloud inference API or key is used. The model can select one existing observation to highlight. Health readings, alerts, next steps, and the ground handoff come from the existing rules. Model text cannot add findings, change severity, or prescribe treatment.
 
-For an offline setup, while still online, run:
+On Windows, double-click `Start-Crew-Check.cmd` in the project folder. It checks the existing assets, fetches missing model shards with transient-error retries, starts the local server, and opens the page. Keep the terminal open. The first download needs connectivity. You can manually prepare an offline setup by running:
 
 ```sh
 node scripts/prepare-offline-ai.js
