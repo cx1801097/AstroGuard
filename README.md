@@ -161,6 +161,8 @@ git add -A ; git commit -m "feat: …" ; git push -u origin feature/your-thing
 
 Open a PR for anything touching `scoring.js` or `data.js` — those two files define medical behaviour, so they deserve a second pair of eyes.
 
+Commits written with the OpenCode agent end with an `Assisted-by:` trailer naming the assistant and the model that produced them, so agent-authored work is always distinguishable from your own commits at a glance. The commit stays authored under your GitHub identity, which keeps the history honest about *who pushed* while still marking *what made it*.
+
 ---
 
 ## Roadmap
