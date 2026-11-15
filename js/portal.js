@@ -41,7 +41,7 @@
       for (const id of ['missionWearable', 'captureWearable', 'missionWearableStatus', 'missionProfile']) {
         byId(id).hidden = next !== 'dashboard';
       }
-      byId('consoleMode').textContent = { simulator: 'Simulator', replay: 'I4 mission playback', dashboard: 'Mission console' }[next] || '';
+      byId('consoleMode').textContent = { simulator: 'Health Monitoring System', replay: 'I4 mission playback', dashboard: 'Mission console' }[next] || '';
       if (next === 'simulator') Console.open('simulator', Store.load() || window.CC_SAMPLE.build(), '');
       if (next === 'replay') showReplay();
       if (next === 'mission') showSavedMissions();
