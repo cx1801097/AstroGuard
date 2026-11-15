@@ -94,6 +94,7 @@
   var state = {
     record: null,
     draft: {},
+    wearableDraft: {},
     symptoms: [],
     note: '',
     preflight: false,
@@ -544,7 +545,35 @@
     }
 
     var result = evaluateEntry(entry);
-    host.innerHTML = strip + checkCard(entry, result) + assistantLink();
+    host.innerHTML = strip + '<div class="assessment-columns">' + crewSuggestionCard(entry, result) +
+      '<div>' + checkCard(entry, result) + assistantLink() + '</div></div>';
+  }
+
+  function crewSuggestionCard(entry, result) {
+    var alerts = result.alerts.slice().sort(function (a, b) { return b.level - a.level; });
+    var situation = result.emergency ? 'A serious symptom was reported.' :
+      result.triage === 'NO DATA' ? 'There are not enough usable readings to assess this check.' :
+      alerts.length ? 'One or more readings or symptoms need a closer look.' :
+      'The available readings did not raise an alert.';
+    var next = result.emergency || result.triage === 'NO-GO'
+      ? 'Tell the crew medical officer and contact the flight surgeon now. Follow the mission’s emergency checklist.'
+      : result.triage === 'CAUTION' ? 'If it is safe, repeat any unusual readings. Tell the crew medical officer if the unusual reading persists or you feel unwell.'
+      : result.triage === 'NO DATA' ? 'Enter the readings you can safely collect. Tell the crew medical officer if you feel unwell.'
+      : 'Continue scheduled checks. Tell the crew medical officer if you feel unwell.';
+    var inventory = profile().resources;
+    var gear = [];
+    if (result.triage === 'CAUTION' && inventory.pulseOximeter && (entry.pending || []).includes('spo2')) gear.push('pulse oximeter');
+    if (result.triage === 'CAUTION' && inventory.heartRateMonitor && (entry.pending || []).includes('heartRate')) gear.push('heart-rate monitor');
+    return '<aside class="card crew-suggestion-card"><h3>Crew Suggestion</h3>' +
+      '<h4>What is happening now</h4><p>' + esc(situation) + '</p>' +
+      (alerts.length ? '<ul>' + alerts.slice(0, 3).map(function (alert) {
+        return '<li>' + esc(alert.text) + '</li>';
+      }).join('') + '</ul>' : '') +
+      '<h4>What to do next</h4><p>' + esc(next) + '</p>' +
+      (gear.length ? '<p>For the recheck, use the listed ' + esc(gear.join(' and ')) + '.</p>' : '') +
+      ((result.emergency || result.triage === 'NO-GO') && inventory.medicalChannel
+        ? '<p>Listed private medical channel: ' + esc(inventory.medicalChannel) + '</p>' : '') +
+      '</aside>';
   }
 
   function onboardCard() {
@@ -581,6 +610,10 @@
     if (!pending.length && Object.keys(entry.confirm || {}).length) {
       badges.push('<span class="badge badge-confirmed">CONFIRMED</span>');
     }
+    var wearableSources = Object.values(entry.wearable || {}).map(function (sample) {
+      var label = D.METRIC_BY_ID[sample.metric].label;
+      return '<li>' + esc(label + ': ' + sample.value + ' ' + sample.unit + ' · ' + sample.provider + ' · ' + sample.timestamp) + '</li>';
+    }).join('');
 
     return '<article class="check-card">' +
       '<div class="check-meta">' +
@@ -590,6 +623,8 @@
       '</div>' +
       verdictHero(result) +
       driversCard(result) +
+      (wearableSources ? '<section class="card"><h4>Wearable readings used</h4><ul class="wearable-sources">' +
+        wearableSources + '</ul></section>' : '') +
       (pending.length ? confirmCard(entry, result) : '') +
       actionsCard(result) +
       evidenceCard(result) +
@@ -1620,7 +1655,24 @@
       '<legend class="section-label">Instrument groups carried on this flight</legend>' +
       '<p class="field-hint">Turn off a group this vehicle does not carry. The check-in form and the required-reading count follow this setting.</p>' +
       '<div class="profile-checks">' + instrumentChecks(prefix, p.instruments) + '</div>' +
-    '</fieldset>';
+    '</fieldset>' + resourceFields(prefix, p.resources);
+  }
+
+  function resourceFields(prefix, resources) {
+    var fields = Store.RESOURCE_FIELDS.map(function (field) {
+      var id = prefix + 'Resource-' + field[0];
+      var value = esc(resources[field[0]] || '');
+      var input = field[2] > 100 ? '<textarea id="' + id + '" maxlength="' + field[2] + '" rows="3">' +
+        value + '</textarea>' : '<input id="' + id + '" type="' + (field[0] === 'returnDate' ? 'date' : 'text') +
+        '" maxlength="' + field[2] + '" value="' + value + '">';
+      return '<label class="field"><span>' + esc(field[1]) + '</span>' + input + '</label>';
+    }).join('');
+    return '<details class="profile-instruments"><summary>Spacecraft and onboard resources</summary>' +
+      '<div class="profile-grid">' + fields + '</div>' +
+      '<div class="profile-checks">' + [['pulseOximeter', 'Usable pulse oximeter'], ['heartRateMonitor', 'Usable heart-rate monitor']].map(function (item) {
+        return '<label class="switch switch-block"><input type="checkbox" id="' + prefix + 'Resource-' + item[0] + '"' +
+          (resources[item[0]] ? ' checked' : '') + '><span>' + item[1] + '</span></label>';
+      }).join('') + '</div></details>';
   }
 
   function readProfileFields(prefix) {
@@ -1641,13 +1693,19 @@
       instruments[g.id] = !el || el.checked;
     });
 
+    var resources = {};
+    Store.RESOURCE_FIELDS.forEach(function (field) { resources[field[0]] = val('Resource-' + field[0]); });
+    ['pulseOximeter', 'heartRateMonitor'].forEach(function (key) {
+      resources[key] = $('#' + prefix + 'Resource-' + key)?.checked === true;
+    });
     var p = Store.cloneProfile({
       destination: val('Destination') || undefined,
       plannedDays: num('PlannedDays'),
       crewSize: num('CrewSize'),
       commDelaySeconds: num('CommDelay'),
       sleepTargetHours: num('SleepTarget'),
-      instruments: instruments
+      instruments: instruments,
+      resources: resources
     });
 
     /* A check with no instrument group at all cannot be scored, so keep
@@ -1920,10 +1978,11 @@
     buildForm();
     renderAll();
     toast('Record created for ' + crew + '.');
-    $('#f-systolic').focus();
+    $('#f-systolic')?.focus();
   }
 
   function setDraftValue(id, raw) {
+    delete state.wearableDraft[id];
     if (raw === '') {
       delete state.draft[id];
     } else {
@@ -1949,6 +2008,7 @@
       day: nextFlightDay(phase, at),
       phase: phase,
       values: values,
+      wearable: clone(state.wearableDraft),
       symptoms: state.symptoms.slice().sort(),
       note: state.note.trim(),
       confirm: {},
@@ -1964,6 +2024,7 @@
 
     state.entryId = entry.id;
     state.draft = {};
+    state.wearableDraft = {};
     state.symptoms = [];
     state.note = '';
     state.preflight = false;
@@ -2008,6 +2069,7 @@
         resolved: level >= 3 ? 'confirmed' : 'artefact'
       };
       values[id] = second;
+      if (entry.wearable) delete entry.wearable[id];
     });
 
     entry.values = values;
@@ -2042,15 +2104,18 @@
     var last = lastEntry();
     if (!last) return;
     state.draft = clone(last.values);
+    Object.keys(last.wearable || {}).forEach(function (id) { delete state.draft[id]; });
+    state.wearableDraft = {};
     state.confirm = {};
     syncForm();
     renderAssessment();
-    toast('Copied ' + Object.keys(last.values).length + ' readings from ' + dayLabel(last) +
+    toast('Copied ' + Object.keys(state.draft).length + ' manual readings from ' + dayLabel(last) +
       '. Change what is different.');
   }
 
   function clearDraft() {
     state.draft = {};
+    state.wearableDraft = {};
     state.symptoms = [];
     state.note = '';
     state.preflight = false;
@@ -2162,6 +2227,7 @@
         state.record = imported;
         state.entryId = null;
         state.draft = {};
+        state.wearableDraft = {};
         state.symptoms = [];
         state.note = '';
         state.qa = [];
@@ -2206,6 +2272,24 @@
      EVENTS
      ============================================================ */
   function bindEvents() {
+    window.addEventListener('message', function (event) {
+      if (window.parent === window || event.source !== window.parent ||
+          event.origin !== (location.protocol === 'file:' ? 'null' : location.origin) ||
+          event.data?.type !== 'crewcheck:wearable-reading') return;
+      var sample = Store.cleanWearable(event.data.sample);
+      if (!sample || !hasRecord() || !$('#f-' + sample.metric)) {
+        toast('Set up a crew record with the vital signs group enabled before adding a wearable reading.');
+        return;
+      }
+      var readingField = $('#f-' + sample.metric);
+      if (sample.value < Number(readingField.min) || sample.value > Number(readingField.max)) {
+        toast('The wearable reading is outside the supported input range. Verify the sensor reading before entering it.');
+        return;
+      }
+      setDraftValue(sample.metric, String(sample.value));
+      state.wearableDraft[sample.metric] = sample;
+      toast('Wearable reading added with its original timestamp. Run check to save it.');
+    });
     $('#setupForm').addEventListener('submit', saveSetup);
     $('#checkForm').addEventListener('submit', runCheck);
 

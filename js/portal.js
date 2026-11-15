@@ -67,6 +67,14 @@
       }
     }
 
+    function sendWearableToMissionConsole(sample) {
+      const frame = byId('missionConsoleFrame');
+      if (!frame.contentWindow) return;
+      const origin = location.protocol === 'file:' ? '*' : location.origin;
+      show('missionConsole');
+      frame.contentWindow.postMessage({ type: 'crewcheck:wearable-reading', sample }, origin);
+    }
+
     function showReplay() {
       const day = Number(byId('i4Day').value);
       const replay = window.CC_I4_DATA;
@@ -143,14 +151,17 @@
       const selectedIndex = recentReadings.indexOf(selected);
       if (selectedIndex >= 0) select.value = String(selectedIndex);
       byId('savedWearablePanel').hidden = !recentReadings.length;
-      byId('useSavedWearable').hidden = wearableBack !== 'dashboard';
-      byId('savedWearableHint').hidden = wearableBack !== 'dashboard';
+      const missionTarget = ['dashboard', 'missionConsole'].includes(wearableBack);
+      byId('useSavedWearable').hidden = !missionTarget;
+      byId('savedWearableHint').hidden = !missionTarget;
+      byId('useLiveInMissionConsole').hidden = wearableBack !== 'missionConsole';
     }
 
     function receive(sample) {
       latest = sample;
       clearTimeout(expiry);
       byId('captureWearable').disabled = !sample;
+      byId('useLiveInMissionConsole').disabled = !sample;
       byId('wearableReading').textContent = sample ? 'Live heart rate · ' + sample.value + ' bpm' : 'Live heart rate · —';
       if (!sample) return;
       expiry = setTimeout(() => receive(null), freshnessMs);
@@ -205,6 +216,10 @@
       show(button.dataset.open);
     }));
     byId('wearableBack').addEventListener('click', () => show(wearableBack));
+    byId('openSimulatorReview').addEventListener('click', () => {
+      show('simulator');
+      document.querySelector('[data-tab="plan"]').click();
+    });
     byId('i4Day').addEventListener('change', showReplay);
     byId('missionForm').addEventListener('submit', event => {
       event.preventDefault();
@@ -280,6 +295,12 @@
     byId('captureWearable').addEventListener('click', () => {
       if (latest && Date.now() - Date.parse(latest.timestamp) < freshnessMs) Console.useWearable(latest);
     });
+    byId('useLiveInMissionConsole').addEventListener('click', () => {
+      if (!latest || Date.now() - Date.parse(latest.timestamp) >= freshnessMs || wearableBack !== 'missionConsole') return;
+      if (window.confirm('Confirm this reading belongs to the current crew member and was taken at rest.')) {
+        sendWearableToMissionConsole(latest);
+      }
+    });
     byId('recordWearable').addEventListener('click', () => {
       if (!recording && records.length >= maxReadings) {
         setRecordStatus('Recording limit reached. Export the saved readings.');
@@ -346,7 +367,18 @@
     });
     byId('useSavedWearable').addEventListener('click', () => {
       const sample = recentReadings[Number(byId('savedWearableReading').value)];
-      if (!sample || wearableBack !== 'dashboard') return;
+      if (!sample || !['dashboard', 'missionConsole'].includes(wearableBack)) return;
+      if (wearableBack === 'missionConsole') {
+        if (sample.provider === 'tcx') {
+          byId('wearableImportStatus').textContent = 'This is a workout reading. New Mission requires resting vital readings.';
+          return;
+        }
+        if (window.confirm('Use the reading from ' + sample.timestamp +
+          '? Confirm it was taken at rest and belongs to the current crew member and mission day.')) {
+          sendWearableToMissionConsole(sample);
+        }
+        return;
+      }
       if (!window.confirm('Use the reading from ' + sample.timestamp + ' in the current mission check-in? Confirm it belongs to this crew member and mission day.')) return;
       show('dashboard');
       Console.useWearable(sample, true);

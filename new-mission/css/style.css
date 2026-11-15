@@ -1420,3 +1420,11 @@ a { color: var(--cyan); }
   .card { border-color: #ccc; background: #fff; }
   .report { color: #000; background: #fff; border-color: #ccc; max-height: none; }
 }
+.assessment-columns { display: grid; grid-template-columns: minmax(190px, 0.6fr) minmax(0, 1.4fr); gap: 14px; align-items: start; }
+.crew-suggestion-card h3 { margin: 0 0 12px; }
+.crew-suggestion-card h4, .crew-suggestion-card p { margin: 8px 0; }
+.crew-suggestion-card ul, .wearable-sources { padding-inline-start: 20px; }
+.profile-grid textarea { width: 100%; }
+@media (max-width: 900px) {
+  .assessment-columns { grid-template-columns: minmax(0, 1fr); }
+}

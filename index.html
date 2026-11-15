@@ -23,6 +23,9 @@
   <section id="missionConsoleView" class="portal-view" hidden>
     <nav class="portal-actions" aria-label="Mission console navigation">
       <button type="button" class="btn" data-open="home">Home</button>
+      <button type="button" class="btn" data-open="wearable">Connect wearable device</button>
+      <button type="button" class="btn" data-open="replay">I4 mission playback</button>
+      <button type="button" class="btn" id="openSimulatorReview">Gemini demo review</button>
       <button type="button" class="btn" data-open="mission">Previous mission setup and saved records</button>
     </nav>
     <h1>New mission</h1>
@@ -85,6 +88,7 @@
       </div>
       <p id="wearableStatus" role="status">No device connected.</p>
       <p id="wearableReading">Live heart rate · —</p>
+      <button type="button" id="useLiveInMissionConsole" class="btn" hidden disabled>Add latest resting heart rate to New Mission</button>
       <div class="portal-actions">
         <button type="button" id="recordWearable" class="btn" disabled>Start recording</button>
         <button type="button" id="exportWearable" class="btn">Export readings</button>

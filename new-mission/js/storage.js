@@ -18,6 +18,47 @@ window.CC_STORAGE = (function () {
   var KEY = 'crewcheck.record.v2';
   var VERSION = 2;
   var LEGACY_KEY = 'crewcheck.mission.v1';
+  var RESOURCE_FIELDS = [
+    ['identifier', 'Mission ID', 48],
+    ['vehicle', 'Spacecraft type or model', 80],
+    ['operator', 'Mission operator', 80],
+    ['status', 'Mission status', 40],
+    ['flightPhase', 'Flight phase', 40],
+    ['launchSite', 'Launch site', 80],
+    ['returnDate', 'Planned return date', 10],
+    ['medicalChannel', 'Private medical channel reference', 100],
+    ['notes', 'Mission objectives and notes', 1000],
+    ['food', 'Food and nutrition', 1200],
+    ['water', 'Water and drinks', 1200],
+    ['medical', 'Medical supplies and capabilities', 1800],
+    ['sensors', 'Body sensors and examination tools', 1800],
+    ['equipment', 'Vehicle equipment and facilities', 1200],
+    ['procedures', 'Medical checklists and crew support', 1200]
+  ];
+
+  function cleanResources(resources) {
+    var input = resources || {};
+    var out = {};
+    RESOURCE_FIELDS.forEach(function (field) {
+      if (typeof input[field[0]] === 'string') out[field[0]] = input[field[0]].trim().slice(0, field[2]);
+    });
+    out.pulseOximeter = input.pulseOximeter === true;
+    out.heartRateMonitor = input.heartRateMonitor === true;
+    return out;
+  }
+
+  function cleanWearable(sample) {
+    if (!sample || !['heartRate', 'spo2'].includes(sample.metric) ||
+        !['ble-hrs', 'apple-health', 'csv', 'json'].includes(sample.provider) ||
+        !isNum(sample.value) || sample.value < 1 ||
+        typeof sample.timestamp !== 'string' || !Number.isFinite(Date.parse(sample.timestamp))) return null;
+    const oxygen = sample.metric === 'spo2';
+    if (sample.value > (oxygen ? 100 : 300) || sample.unit !== (oxygen ? '%' : 'bpm')) return null;
+    return {
+      metric: sample.metric, value: sample.value, unit: sample.unit,
+      timestamp: new Date(sample.timestamp).toISOString(), provider: sample.provider
+    };
+  }
 
   /* Everything in here differs from flight to flight, so it is stored
      with the record and editable from the Mission tab. */
@@ -32,8 +73,9 @@ window.CC_STORAGE = (function () {
 
   function cloneProfile(p) {
     var out = {};
+    out.resources = cleanResources(p && p.resources);
     Object.keys(DEFAULT_PROFILE).forEach(function (k) {
-      out[k] = DEFAULT_PROFILE[k];
+      out[k] = k === 'instruments' ? { ...DEFAULT_PROFILE[k] } : DEFAULT_PROFILE[k];
     });
     if (p && typeof p === 'object') {
       if (typeof p.destination === 'string') out.destination = p.destination;
@@ -95,12 +137,18 @@ window.CC_STORAGE = (function () {
   }
 
   function normalizeEntry(e) {
+    var wearable = {};
+    ['heartRate', 'spo2'].forEach(function (metric) {
+      var sample = cleanWearable(e.wearable?.[metric]);
+      if (sample && sample.metric === metric && sample.value === e.values[metric]) wearable[metric] = sample;
+    });
     return {
       id: typeof e.id === 'string' && e.id ? e.id : newId(),
       at: e.at,
       day: isNum(e.day) ? e.day : null,
       phase: e.phase === 'preflight' ? 'preflight' : 'flight',
       values: cleanValues(e.values),
+      wearable: wearable,
       symptoms: Array.isArray(e.symptoms) ? e.symptoms.filter(function (s) { return typeof s === 'string'; }) : [],
       note: typeof e.note === 'string' ? e.note.slice(0, 400) : '',
       confirm: e.confirm && typeof e.confirm === 'object' ? e.confirm : {},
@@ -225,6 +273,8 @@ window.CC_STORAGE = (function () {
     KEY: KEY,
     VERSION: VERSION,
     DEFAULT_PROFILE: DEFAULT_PROFILE,
+    RESOURCE_FIELDS: RESOURCE_FIELDS,
+    cleanWearable: cleanWearable,
     cloneProfile: cloneProfile,
     load: load,
     save: save,
