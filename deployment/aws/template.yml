@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CREW CHECK simulated scenario review with an atomic daily Bedrock cap
+Parameters:
+  DailyLimit:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    MaxValue: 1000
+Resources:
+  ReviewQuota:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: day
+          AttributeType: S
+      KeySchema:
+        - AttributeName: day
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+  ReviewFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: function.zip
+      Handler: deployment/aws/handler.handler
+      Runtime: nodejs22.x
+      Timeout: 24
+      Environment:
+        Variables:
+          QUOTA_TABLE: !Ref ReviewQuota
+          DAILY_LIMIT: !Ref DailyLimit
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt ReviewQuota.Arn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.nova-micro-v1:0'
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - https://cx1801097.github.io
+          AllowMethods:
+            - POST
+          AllowHeaders:
+            - Content-Type
+Outputs:
+  ReviewUrl:
+    Description: HTTPS URL for the simulated review endpoint
+    Value: !GetAtt ReviewFunctionUrl.FunctionUrl
