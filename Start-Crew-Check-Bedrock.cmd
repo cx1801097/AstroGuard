@@ -7,6 +7,11 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-powershell.exe -NoProfile -Command "if (!$env:AWS_BEARER_TOKEN_BEDROCK) { $secret = Read-Host 'Enter your Amazon Bedrock API key (hidden)' -AsSecureString; if (!$secret.Length) { exit 1 }; $env:AWS_BEARER_TOKEN_BEDROCK = [System.Net.NetworkCredential]::new('', $secret).Password.Trim() }; try { node server.js --open; exit $LASTEXITCODE } finally { Remove-Item Env:AWS_BEARER_TOKEN_BEDROCK -ErrorAction SilentlyContinue }"
-if errorlevel 1 pause
+echo CREW CHECK Bedrock opens at http://localhost:8091/ once the server starts.
+powershell.exe -NoProfile -Command "if (!$env:AWS_BEARER_TOKEN_BEDROCK) { $secret = Read-Host 'Enter your Amazon Bedrock API key (hidden)' -AsSecureString; $env:AWS_BEARER_TOKEN_BEDROCK = [System.Net.NetworkCredential]::new('', $secret).Password.Trim() }; if (!$env:AWS_BEARER_TOKEN_BEDROCK) { Write-Host 'No Bedrock API key was entered.'; exit 1 }; try { node server.js 8091 --open; exit $LASTEXITCODE } finally { Remove-Item Env:AWS_BEARER_TOKEN_BEDROCK -ErrorAction SilentlyContinue }"
+if errorlevel 1 (
+  pause
+  popd
+  exit /b 1
+)
 popd
