@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { evaluate, guidance, reviewReport } = require('../js/detection');
+const { evaluate, guidance, reviewReport, crewSuggestion } = require('../js/detection');
 const fixtures = require('./fixtures/health-cases.json');
 
 function checkIn(day, values, metadata = {}) {
@@ -11,6 +11,27 @@ function checkIn(day, values, metadata = {}) {
 }
 
 const stable = Array.from({ length: 7 }, (_, index) => checkIn(index + 1, { spo2: 98, heartRate: 66 }));
+
+test('crew suggestion describes the finding and uses only the relevant confirmed sensor', () => {
+  const assessment = evaluate(checkIn(9, { spo2: 91, heartRate: 72 }));
+  const suggestion = crewSuggestion(assessment, { pulseOximeter: 'available', heartRateMonitor: 'available' });
+  assert.match(suggestion.situation, /Blood oxygen is 91%/);
+  assert.match(suggestion.next, /another reading at rest/);
+  assert.match(suggestion.resource, /pulse oximeter/);
+  assert.doesNotMatch(suggestion.resource, /heart-rate monitor/);
+  assert.doesNotMatch(crewSuggestion(assessment, { sensors: 'oxygen equipment' }).resource, /pulse oximeter/);
+});
+
+test('crew suggestion escalates reported chest pain even when vital signs produce no alert', () => {
+  const assessment = evaluate(checkIn(9, { spo2: 98, heartRate: 72 }));
+  const suggestion = crewSuggestion(assessment, { pulseOximeter: 'available', medical: 'Specific dose', food: 'Meal inventory' }, ['chestPain']);
+  assert.equal(suggestion.severity, 'CRITICAL');
+  assert.match(suggestion.situation, /Chest pain or pressure/);
+  assert.match(suggestion.next, /contact the flight surgeon now/);
+  assert.match(suggestion.next, /Do not wait/);
+  assert.match(suggestion.resource, /medical inventory/);
+  assert.doesNotMatch(suggestion.resource, /Specific dose|pulse oximeter/);
+});
 
 test('critical guidance prioritizes private contact and the report omits flagged values and identity', () => {
   const current = checkIn(9, { spo2: 86, heartRate: 234 }, {

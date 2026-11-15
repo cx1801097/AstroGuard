@@ -302,7 +302,13 @@
       return '<li><strong>' + esc(D.HAZARDS[h].label) + '</strong><span>' + esc(D.HAZARDS[h].detail) + '</span></li>';
     }).join('');
 
-    var actions = r.actions.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('');
+    var actionCard = '';
+    if (state.mode === 'simulator') {
+      actionCard = '<div class="card"><h4>Recommended actions</h4><ul class="action-list">' +
+        r.actions.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>';
+    } else if (state.mode === 'mission') {
+      actionCard = '<div class="card"><h4>Crew Suggestion</h4><p>Open Action plan for what to do next.</p></div>';
+    }
 
     $('#systemDetail').innerHTML =
       '<div class="detail-head">' +
@@ -323,10 +329,7 @@
           '<tbody>' + findings + '</tbody></table>' +
           '<p class="detail-note">Context load from flight day, sleep debt and exercise deficit: <strong>' + r.contextRisk + '/100</strong></p>' +
         '</div>' +
-        '<div class="card">' +
-          '<h4>Recommended actions</h4>' +
-          '<ul class="action-list">' + actions + '</ul>' +
-        '</div>' +
+        actionCard +
       '</div>' +
 
       '<div class="card hazard-card">' +
@@ -416,17 +419,23 @@
   function renderPlan() {
     var r = state.result;
     var detection = Detection.evaluate(detectionInput(), state.mission.entries);
-    var guidance = Detection.guidance(detection.severity);
+    var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms);
+    $('#crewSuggestion').hidden = state.mode === 'replay';
+    $('#crewSituation').textContent = suggestion.situation;
+    $('#crewNextStep').textContent = suggestion.next;
+    $('#crewResourceStep').textContent = suggestion.resource;
+    $('#crewResourceStep').hidden = !suggestion.resource;
     var tones = { NORMAL: 'is-go', WARNING: 'is-caution', CRITICAL: 'is-nogo' };
     $('#healthDetection').innerHTML =
       '<h4>Vital-sign detection <span class="chip ' + (tones[detection.severity] || '') + '">' +
       esc(detection.severity) + '</span></h4><p>' + esc(Detection.sourceLabels[detection.source]) +
       '</p><ul>' + detection.reasons.map(function (reason) {
         return '<li>' + esc(reason) + '</li>';
-      }).join('') + '</ul>' + (state.mode === 'replay'
-        ? '<p>Historical playback · ' + esc(Detection.sourceLabels[detection.source]) + '</p>'
-        : '<p><strong>Crew guidance</strong> ' + esc(guidance.advice) + '</p>');
-    var report = state.mode === 'replay' ? '' : Detection.reviewReport(state.mission.flightDay, detection);
+      }).join('') + '</ul>';
+    var reportAssessment = state.symptoms.includes('chestPain')
+      ? Object.assign({}, detection, { severity: 'CRITICAL', reasons: ['Chest pain or pressure was reported.'].concat(detection.reasons) })
+      : detection;
+    var report = state.mode === 'replay' ? '' : Detection.reviewReport(state.mission.flightDay, reportAssessment);
     $('#groundReview').hidden = !report;
     if (!report) $('#groundReview').open = false;
     $('#groundReport').value = report;
@@ -842,7 +851,15 @@
     toast('Wearable heart rate added to this check-in. Save to keep it.');
   }
 
-  window.CC_CONSOLE = { open: open, useWearable: useWearable };
+  function updateResources(details) {
+    if (state.mode !== 'mission') return false;
+    if (!Store.save(Object.assign({}, state.mission, { details: details }), state.scope)) return false;
+    state.mission.details = details;
+    refresh();
+    return true;
+  }
+
+  window.CC_CONSOLE = { open: open, useWearable: useWearable, updateResources: updateResources };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

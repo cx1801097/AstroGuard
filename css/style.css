@@ -380,6 +380,21 @@ input[type="range"]::-moz-range-thumb {
 .portal-option span { color: var(--text-dim); }
 .portal-option:hover, .portal-option:focus-visible { border-color: var(--cyan); }
 .portal-view > .card { margin-top: 14px; }
+.inventory { border: 1px solid var(--line-soft); border-radius: var(--radius-sm); margin: 12px 0; padding: 14px; }
+.inventory legend { padding: 0 6px; }
+.inventory > p { color: var(--text-dim); margin-bottom: 12px; }
+.inventory-checks { display: flex; flex-wrap: wrap; gap: 12px 20px; }
+.inventory-checks label { display: inline-flex; align-items: center; gap: 6px; }
+.plan-columns { display: grid; grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.2fr); gap: 14px; align-items: start; }
+.crew-suggestion { border-color: rgba(57, 208, 255, 0.35); }
+.crew-suggestion h3 { font-size: 16px; }
+.crew-suggestion h4 { margin-top: 13px; margin-bottom: 4px; }
+.crew-suggestion p + p { margin-top: 10px; }
+.mission-mode #planList { display: none; }
+.replay-mode .plan-columns { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 840px) {
+  .plan-columns { grid-template-columns: 1fr; }
+}
 .portal-actions, .console-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .portal-actions { margin: 12px 0; }
 .console-navigation { padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }

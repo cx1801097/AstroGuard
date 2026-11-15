@@ -41,7 +41,23 @@
         <div class="field"><label for="medicalChannel">Private medical channel reference</label><input id="medicalChannel" name="medicalChannel" maxlength="100"></div>
       </div>
       <div class="field"><label for="missionNotes">Mission objectives and operational notes</label><textarea id="missionNotes" name="notes" maxlength="1000" rows="3"></textarea></div>
-      <button type="submit" class="btn btn-primary">Create mission</button>
+      <fieldset id="missionInventory" class="inventory">
+        <legend>Onboard resources</legend>
+        <p>List what is usable aboard the spacecraft. Include quantities, locations, restrictions, and checklist references where relevant.</p>
+        <div class="mission-form-grid">
+          <div class="field"><label for="inventoryFood">Food and nutrition</label><textarea id="inventoryFood" name="food" rows="3" maxlength="1200" placeholder="Available meals, shelf life, allergies, dietary limits"></textarea></div>
+          <div class="field"><label for="inventoryWater">Water and drinks</label><textarea id="inventoryWater" name="water" rows="3" maxlength="1200" placeholder="Potable water, drink supplies, ration limits"></textarea></div>
+          <div class="field"><label for="inventoryMedical">Medical supplies and treatment capabilities</label><textarea id="inventoryMedical" name="medical" rows="3" maxlength="1800" placeholder="Medication and kit inventory, oxygen equipment, expiry dates, authorized operators"></textarea></div>
+          <div class="field"><label for="inventorySensors">Body sensors and examination tools</label><textarea id="inventorySensors" name="sensors" rows="3" maxlength="1800" placeholder="Device models, measurements, calibration, and spare batteries"></textarea></div>
+          <div class="field"><label for="inventoryEquipment">Vehicle equipment and facilities</label><textarea id="inventoryEquipment" name="equipment" rows="3" maxlength="1200" placeholder="Cabin monitors, power, exercise equipment, and work areas"></textarea></div>
+          <div class="field"><label for="inventoryProcedures">Medical checklists and crew support</label><textarea id="inventoryProcedures" name="procedures" rows="3" maxlength="1200" placeholder="Checklist references, trained crew, and communication limits"></textarea></div>
+        </div>
+        <div class="inventory-checks">
+          <label><input type="checkbox" name="pulseOximeter" value="available"> Usable pulse oximeter</label>
+          <label><input type="checkbox" name="heartRateMonitor" value="available"> Usable heart-rate monitor</label>
+        </div>
+      </fieldset>
+      <button type="submit" id="createMission" class="btn btn-primary">Create mission</button>
       <p id="missionFormStatus" role="status"></p>
     </form>
     <section id="savedMissionPanel" class="card" hidden>
@@ -81,6 +97,12 @@
 <details id="missionProfile" class="replay-banner card" hidden>
   <summary>Mission details</summary>
   <dl id="missionProfileFields"></dl>
+  <button type="button" class="btn" id="editInventory">Edit onboard resources</button>
+  <form id="editInventoryForm" hidden>
+    <button type="submit" id="saveInventory" class="btn btn-primary">Save resources</button>
+    <button type="button" id="cancelInventory" class="btn">Cancel</button>
+    <p id="inventoryStatus" role="status"></p>
+  </form>
 </details>
 <section id="i4Replay" class="replay-banner card" hidden>
   <h2>Inspiration4 mission playback</h2>
@@ -224,18 +246,32 @@
 
       <!-- ACTION PLAN -->
       <div class="pane" data-pane="plan">
-        <div id="healthDetection" class="card alert-card" aria-live="polite"></div>
-        <details id="groundReview" class="card alert-card" hidden>
-          <summary>Review ground handoff</summary>
-          <p>Review the draft and copy it into the mission’s approved private medical channel when appropriate. The demo has no connection to NASA.</p>
-          <div class="field">
-            <label for="groundReport">Handoff draft</label>
-            <textarea id="groundReport" rows="9" readonly></textarea>
+        <div class="plan-columns">
+          <aside id="crewSuggestion" class="card crew-suggestion" aria-labelledby="crewSuggestionTitle">
+            <h3 id="crewSuggestionTitle">Crew Suggestion</h3>
+            <div id="crewSuggestionContent" aria-live="polite">
+              <h4>What is happening now</h4>
+              <p id="crewSituation"></p>
+              <h4>What to do next</h4>
+              <p id="crewNextStep"></p>
+              <p id="crewResourceStep" hidden></p>
+            </div>
+          </aside>
+          <div class="plan-evidence">
+            <div id="healthDetection" class="card alert-card" aria-live="polite"></div>
+            <details id="groundReview" class="card alert-card" hidden>
+              <summary>Review ground handoff</summary>
+              <p>Review the draft and copy it into the mission’s approved private medical channel when appropriate. The demo has no connection to NASA.</p>
+              <div class="field">
+                <label for="groundReport">Handoff draft</label>
+                <textarea id="groundReport" rows="9" readonly></textarea>
+              </div>
+            </details>
+            <div id="planSummary" class="plan-summary"></div>
+            <div id="alertBlock"></div>
+            <div id="planList" class="plan-list"></div>
           </div>
-        </details>
-        <div id="planSummary" class="plan-summary"></div>
-        <div id="alertBlock"></div>
-        <div id="planList" class="plan-list"></div>
+        </div>
       </div>
 
       <!-- LOG -->

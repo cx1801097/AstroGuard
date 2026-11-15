@@ -30,6 +30,7 @@
     } catch {}
 
     function show(next, moveFocus = true) {
+      if (next !== 'dashboard' && !byId('editInventoryForm').hidden) closeInventoryEditor();
       view = next;
       const dashboard = ['simulator', 'replay', 'dashboard'].includes(next);
       byId('portal').hidden = dashboard;
@@ -87,7 +88,10 @@
         identifier: 'Mission ID', vehicle: 'Spacecraft', operator: 'Operator',
         launchDate: 'Launch date', returnDate: 'Planned return', status: 'Status',
         phase: 'Flight phase', destination: 'Destination or orbit', launchSite: 'Launch site',
-        crewSize: 'Total crew size', medicalChannel: 'Private medical channel', notes: 'Mission notes'
+        crewSize: 'Total crew size', medicalChannel: 'Private medical channel', notes: 'Mission notes',
+        food: 'Food and nutrition', water: 'Water and drinks', medical: 'Medical supplies',
+        sensors: 'Body sensors', equipment: 'Vehicle equipment', procedures: 'Medical checklists',
+        pulseOximeter: 'Pulse oximeter', heartRateMonitor: 'Heart-rate monitor'
       };
       const fields = byId('missionProfileFields');
       fields.replaceChildren();
@@ -96,9 +100,20 @@
         const title = document.createElement('dt');
         const value = document.createElement('dd');
         title.textContent = label;
-        value.textContent = mission.details[key];
+        value.textContent = mission.details[key] === 'available' ? 'Available' : mission.details[key];
         fields.append(title, value);
       }
+    }
+
+    function closeInventoryEditor() {
+      byId('missionForm').insertBefore(byId('missionInventory'), byId('createMission'));
+      for (const field of byId('missionInventory').elements) {
+        if (field.type === 'checkbox') field.checked = false;
+        else field.value = '';
+      }
+      byId('editInventoryForm').hidden = true;
+      byId('editInventory').hidden = false;
+      byId('inventoryStatus').textContent = '';
     }
 
     function setRecordStatus(message) {
@@ -196,6 +211,41 @@
       if (!mission) return;
       activeMission = { scope, mission };
       show('dashboard');
+    });
+    byId('editInventory').addEventListener('click', () => {
+      const editor = byId('editInventoryForm');
+      const inventory = byId('missionInventory');
+      editor.insertBefore(inventory, byId('saveInventory'));
+      for (const field of inventory.elements) {
+        const value = activeMission.mission.details?.[field.name];
+        if (field.type === 'checkbox') field.checked = value === 'available';
+        else field.value = value || '';
+      }
+      editor.hidden = false;
+      byId('editInventory').hidden = true;
+      inventory.elements[0].focus();
+    });
+    byId('cancelInventory').addEventListener('click', () => {
+      closeInventoryEditor();
+      byId('editInventory').focus();
+    });
+    byId('editInventoryForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const values = new FormData(event.currentTarget);
+      const details = { ...activeMission.mission.details };
+      for (const field of byId('missionInventory').elements) {
+        const value = values.get(field.name)?.trim();
+        if (value) details[field.name] = value;
+        else delete details[field.name];
+      }
+      if (!Console.updateResources(details)) {
+        byId('inventoryStatus').textContent = 'Resources could not be saved. Check local storage and retry.';
+        return;
+      }
+      activeMission.mission.details = details;
+      showMissionProfile(activeMission.mission);
+      closeInventoryEditor();
+      byId('editInventory').focus();
     });
 
     byId('pairWearable').addEventListener('click', adapter.pair);

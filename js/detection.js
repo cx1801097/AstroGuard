@@ -117,6 +117,7 @@
     const baselines = {};
     const samples = [...prior.values()].filter(entry => entry.day >= current.day - config.baselineDays);
     const reasons = [];
+    const findings = [];
     const persistent = new Set();
     let critical = false;
     let warning = false;
@@ -139,6 +140,7 @@
         if (count >= config.persistenceDays) persistent.add(key);
         critical ||= hit.severity === 'CRITICAL';
         warning = true;
+        findings.push({ metric: key, value: sample.value, kind: 'threshold' });
         reasons.push(display + ' meets the ' + hit.severity.toLowerCase() + ' threshold (' +
           hit.limit + '). Consecutive flagged days: ' + count + '.');
       }
@@ -151,6 +153,7 @@
       } else if (anomaly(key, sample.value, baseline, config)) {
         const count = consecutive(key, (value, context) => context === 'rest' && anomaly(key, value, baseline, config));
         warning ||= count >= config.persistenceDays;
+        if (!hit) findings.push({ metric: key, value: sample.value, kind: 'change' });
         reasons.push(display + ' departs from the resting median (' + baseline.median + metric.unit +
           '). Consecutive flagged days: ' + count + '.');
       }
@@ -164,7 +167,7 @@
 
     const severity = critical ? 'CRITICAL' : warning ? 'WARNING' : incomplete ? 'UNKNOWN' : 'NORMAL';
     if (severity === 'NORMAL') reasons.unshift('No alert threshold was reached for this activity.');
-    return { severity, source, activity, quality, baselines, reasons };
+    return { severity, source, activity, quality, baselines, reasons, findings };
   }
 
   function guidance(severity) {
@@ -207,7 +210,57 @@
     ].join('\n');
   }
 
-  const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport };
+  function crewSuggestion(assessment, resources = {}, symptoms = []) {
+    const chestPain = symptoms.includes('chestPain');
+    const severity = chestPain ? 'CRITICAL' : assessment.severity;
+    const statements = [];
+    if (chestPain) statements.push('Chest pain or pressure was reported.');
+    const concerning = new Set();
+    for (const finding of assessment.findings) {
+      concerning.add(finding.metric);
+      const oxygen = finding.metric === 'spo2';
+      const label = oxygen ? 'Blood oxygen' : 'Resting heart rate';
+      const unit = oxygen ? '%' : ' beats per minute';
+      const reason = finding.kind === 'change' ? ' That differs from your usual readings.' : ' That crossed an alert limit.';
+      statements.push(label + ' is ' + finding.value + unit + '.' + reason);
+    }
+    for (const [key, label] of [['spo2', 'blood oxygen'], ['heartRate', 'heart rate']]) {
+      if (assessment.quality[key] === 'usable') continue;
+      concerning.add(key);
+      statements.push('There is no usable ' + label + ' reading.');
+    }
+    if (assessment.activity === 'unknown') statements.push('The activity during the reading is unknown.');
+    if (!statements.length) statements.push(assessment.activity === 'exercise'
+      ? 'Blood oxygen did not trigger an alert. Heart rate was recorded during exercise.'
+      : 'The available readings did not trigger an alert.');
+
+    let next;
+    let resource = '';
+    if (severity === 'CRITICAL') {
+      next = 'Tell the crew medical officer and contact the flight surgeon now. Follow the mission emergency checklist. Do not wait to take another reading.';
+      resource = resources.medicalChannel
+        ? 'Listed private medical channel: ' + resources.medicalChannel
+        : 'Use the mission’s approved private medical channel.';
+    } else if (severity === 'NORMAL') {
+      next = 'Keep taking your scheduled readings. Tell the crew medical officer if you feel unwell.';
+    } else {
+      next = severity === 'WARNING'
+        ? 'If it is safe, take another reading at rest. Tell the crew medical officer if the reading still looks unusual or you feel unwell.'
+        : 'Record what you were doing and fill in any missing readings. If you feel unwell, tell the crew medical officer without waiting for a reading.';
+      const tools = [];
+      if (concerning.has('spo2') && resources.pulseOximeter === 'available') tools.push('pulse oximeter');
+      if (concerning.has('heartRate') && resources.heartRateMonitor === 'available') tools.push('heart-rate monitor');
+      if (tools.length) resource = 'For the recheck, use the listed ' + tools.join(' and ') + ' and follow its instructions.';
+      if (!tools.length && concerning.size) resource = 'If a suitable sensor is unavailable, tell the crew medical officer and record what you could measure.';
+    }
+    if (severity === 'CRITICAL' || severity === 'WARNING') {
+      if (resources.medical || resources.procedures) resource += (resource ? ' ' : '') + 'Share the onboard medical inventory and checklist references with the medical officer.';
+      if (resources.food || resources.water) resource += (resource ? ' ' : '') + 'Have the food and water inventory ready if the medical officer asks about intake.';
+    }
+    return { severity, situation: statements.join(' '), next, resource };
+  }
+
+  const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion };
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else window.CC_DETECTION = engine;
 })();
