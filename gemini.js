@@ -117,8 +117,9 @@ function createGeminiHandler({ apiKey, fetcher, now = Date.now, review = analyze
       const result = await review(input, apiKey, fetcher);
       if (result.upstreamStatus) {
         const status = result.upstreamStatus;
-        return reply(status === 429 ? 429 : 502, { error: status === 429 ? provider + ' quota is currently unavailable.' :
-          provider + ' rejected the request (HTTP ' + status + '). Check the API key and model access.' });
+        return reply(status === 429 ? 429 : 502, { error: result.upstreamMessage ||
+          (status === 429 ? provider + ' quota is currently unavailable.' :
+            provider + ' rejected the request (HTTP ' + status + '). Check the API key and model access.') });
       }
       return reply(200, result);
     } catch {

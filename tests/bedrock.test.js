@@ -31,12 +31,21 @@ test('Bedrock receives only coded findings and preserves chest pain priority', a
   assert.deepEqual(result, { model: 'amazon.nova-micro-v1:0', priority: [1, 0], clarification: '' });
 });
 
-test('Bedrock rejects invented findings and returns upstream status when denied', async () => {
+test('Bedrock rejects invented findings', async () => {
   const review = createBedrockReview();
   await assert.rejects(review(input, 'test-token', async () => ({
     ok: true, json: async () => ({
       output: { message: { content: [{ text: '{"priority":["9"],"clarification":"none"}' }] } }
     })
   })), /Invalid Amazon Bedrock response/);
-  assert.deepEqual(await review(input, 'test-token', async () => ({ ok: false, status: 403 })), { upstreamStatus: 403 });
+});
+
+test('Bedrock explains a key Region mismatch without exposing upstream details', async () => {
+  const response = new Response(JSON.stringify({
+    message: 'Credential should be scoped to a valid region. Private upstream details.'
+  }), { status: 403 });
+  const result = await createBedrockReview()(input, 'test-token', async () => response);
+  assert.equal(result.upstreamStatus, 403);
+  assert.match(result.upstreamMessage, /us-east-1.*Region where your Bedrock API key was generated/);
+  assert.doesNotMatch(result.upstreamMessage, /Private upstream details/);
 });
