@@ -142,6 +142,12 @@ Enter SpO₂ (%) and heart rate (bpm), then select the source and the activity *
 
 The detector executes entirely in the browser, including when run from `index.html`. Detection needs no model download, API key, or telemetry. Mission readiness still covers the original body systems and symptoms. Vital-sign status covers only oxygen and pulse.
 
+### Gemini mission demo review
+
+On Windows, use `Start-Crew-Check-Gemini.cmd` and enter your Gemini API key at the hidden prompt. For other operating systems, provide `GEMINI_API_KEY` in the Node server process environment and open `http://localhost:8080`. Under **Health Monitoring System → Action plan**, click **Analyze mission with Gemini**. No model download is required for this mode.
+
+The local server sends only categories of simulated findings to Gemini 2.5 Flash-Lite. Names, notes, raw vital signs and measured or digitized crew records stay out of the cloud request. Gemini ranks existing findings and can select a relevant follow-up question. The original alerts and crew guidance remain present and have priority. The server accepts same-origin loopback requests only, caps output and limits cloud requests to 20 an hour per running server. The key stays in server process memory. The static GitHub Pages demo cannot run this endpoint.
+
 ### Optional on-device AI highlight
 
 Open **Action plan → Highlight with local AI** in a WebGPU browser. On GitHub Pages or another HTTPS static host, the first run downloads the WebLLM runtime and the Qwen3 4B model (about 2.3 GB). Inference happens in a browser worker. No cloud inference API or key is used. The model can select one existing observation to highlight. Health readings, alerts, next steps, and the ground handoff come from the existing rules. Model text cannot add findings, change severity, or prescribe treatment.

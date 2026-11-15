@@ -214,7 +214,12 @@
     const chestPain = symptoms.includes('chestPain');
     const severity = chestPain ? 'CRITICAL' : assessment.severity;
     const statements = [];
-    if (chestPain) statements.push('Chest pain or pressure was reported.');
+    const findingCodes = [];
+    function addObservation(text, kind, metric) {
+      statements.push(text);
+      findingCodes.push({ kind, metric });
+    }
+    if (chestPain) addObservation('Chest pain or pressure was reported.', 'chest_pain');
     const concerning = new Set();
     for (const finding of assessment.findings) {
       concerning.add(finding.metric);
@@ -222,17 +227,18 @@
       const label = oxygen ? 'Blood oxygen' : 'Resting heart rate';
       const unit = oxygen ? '%' : ' beats per minute';
       const reason = finding.kind === 'change' ? ' That differs from your usual readings.' : ' That crossed an alert limit.';
-      statements.push(label + ' is ' + finding.value + unit + '.' + reason);
+      addObservation(label + ' is ' + finding.value + unit + '.' + reason,
+        finding.kind === 'change' ? 'baseline_change' : 'alert', finding.metric);
     }
     for (const [key, label] of [['spo2', 'blood oxygen'], ['heartRate', 'heart rate']]) {
       if (assessment.quality[key] === 'usable') continue;
       concerning.add(key);
-      statements.push('There is no usable ' + label + ' reading.');
+      addObservation('There is no usable ' + label + ' reading.', 'missing', key);
     }
-    if (assessment.activity === 'unknown') statements.push('The activity during the reading is unknown.');
-    if (!statements.length) statements.push(assessment.activity === 'exercise'
+    if (assessment.activity === 'unknown') addObservation('The activity during the reading is unknown.', 'activity_unknown');
+    if (!statements.length) addObservation(assessment.activity === 'exercise'
       ? 'Blood oxygen did not trigger an alert. Heart rate was recorded during exercise.'
-      : 'The available readings did not trigger an alert.');
+      : 'The available readings did not trigger an alert.', assessment.activity === 'exercise' ? 'exercise' : 'no_alert');
 
     let next;
     let resource = '';
@@ -257,7 +263,7 @@
       if (resources.medical || resources.procedures) resource += (resource ? ' ' : '') + 'Share the onboard medical inventory and checklist references with the medical officer.';
       if (resources.food || resources.water) resource += (resource ? ' ' : '') + 'Have the food and water inventory ready if the medical officer asks about intake.';
     }
-    return { severity, situation: statements.join(' '), next, resource, observations: statements };
+    return { severity, situation: statements.join(' '), next, resource, observations: statements, findingCodes };
   }
 
   const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion };

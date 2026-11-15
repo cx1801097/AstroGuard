@@ -10,11 +10,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('node:child_process');
+const { createGeminiHandler } = require('./gemini');
 
 const ROOT = __dirname;
 const args = process.argv.slice(2);
 const openBrowser = args.includes('--open');
 const PORT = Number(args.find(arg => arg !== '--open') || process.env.PORT || 8080);
+const handleGemini = createGeminiHandler({ apiKey: process.env.GEMINI_API_KEY });
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -37,6 +39,15 @@ const server = http.createServer((req, res) => {
   } catch {
     res.writeHead(400);
     res.end('Malformed path');
+    return;
+  }
+  if (url === '/api/gemini-analysis') {
+    handleGemini(req, res).catch(() => {
+      if (!res.headersSent && !res.destroyed) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'The review request was interrupted.' }));
+      }
+    });
     return;
   }
   const rel = url === '/' ? '/index.html' : url;
@@ -91,7 +102,9 @@ server.listen(PORT, openBrowser ? 'localhost' : undefined, () => {
   console.log('CREW CHECK serving ' + ROOT);
   console.log('  ' + address);
   if (openBrowser && process.platform === 'win32') {
-    execFile('rundll32.exe', ['url.dll,FileProtocolHandler', address], { windowsHide: true }, error => {
+    const browserEnvironment = { ...process.env };
+    delete browserEnvironment.GEMINI_API_KEY;
+    execFile('rundll32.exe', ['url.dll,FileProtocolHandler', address], { windowsHide: true, env: browserEnvironment }, error => {
       if (error) console.error('Open this address in your browser: ' + address);
     });
   }

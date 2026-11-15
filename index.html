@@ -277,6 +277,14 @@
               <p id="crewNextStep"></p>
               <p id="crewResourceStep" hidden></p>
             </div>
+            <div id="geminiReview">
+              <button type="button" id="runGemini" class="btn btn-primary">Analyze mission with Gemini</button>
+              <p id="geminiStatus" role="status">Gemini reviews the simulated check-in. Only finding categories are sent to Google.</p>
+              <ol id="geminiFindings" hidden></ol>
+              <p id="geminiClarification" hidden></p>
+            </div>
+            <details>
+            <summary>Optional local Qwen3</summary>
             <button type="button" id="runLocalAI" class="btn">Highlight with local AI</button>
             <p id="localAIStatus" role="status">Qwen3 runs on this device. First use on the web downloads about 2.3 GB.</p>
             <details id="localAIHelp">
@@ -292,6 +300,7 @@
               <p>On the hosted HTTPS version, the first click downloads the model in the background and displays progress here.</p>
             </details>
             <p id="localAIFocus" hidden></p>
+            </details>
           </aside>
           <div class="plan-evidence">
             <div id="healthDetection" class="card alert-card" aria-live="polite"></div>

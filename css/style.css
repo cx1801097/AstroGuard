@@ -391,6 +391,9 @@ input[type="range"]::-moz-range-thumb {
 .crew-suggestion h4 { margin-top: 13px; margin-bottom: 4px; }
 .crew-suggestion p + p { margin-top: 10px; }
 #runLocalAI, #localAIStatus, #localAIFocus { margin-top: 10px; }
+#geminiReview { margin: 14px 0; }
+#geminiReview p, #geminiFindings { margin-top: 8px; }
+#geminiFindings { padding-inline-start: 20px; }
 #localAIStatus { color: var(--text-dim); font-size: 12px; }
 #localAIHelp { margin-top: 10px; }
 #localAIHelp ol { padding-inline-start: 20px; margin: 8px 0; }

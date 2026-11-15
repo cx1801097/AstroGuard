@@ -62,3 +62,5 @@ jupyter/.ipynb_checkpoints/
 tmp/
 temp/
 ai-assets/
+.env
+.env.*

@@ -421,6 +421,7 @@
     var r = state.result;
     var detection = Detection.evaluate(detectionInput(), state.mission.entries);
     var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms);
+    setGeminiScenario(detection, suggestion);
     setLocalAIObservations(state.mode === 'replay' ? [] : suggestion.observations);
     $('#crewSuggestion').hidden = state.mode === 'replay';
     $('#crewSituation').textContent = suggestion.situation;
@@ -489,6 +490,73 @@
   var aiPending;
   var aiTimeout;
   var aiObservations = [];
+  var geminiScenario;
+  var geminiPending = false;
+
+  function setGeminiScenario(detection, suggestion) {
+    var eligible = state.mode === 'simulator' && detection.source === 'simulated';
+    var available = /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(location.origin);
+    var panel = $('#geminiReview');
+    panel.hidden = !eligible;
+    var details = state.mission.details || {};
+    var next = eligible ? {
+      request: {
+        source: detection.source, severity: suggestion.severity, phase: details.phase,
+        findings: suggestion.findingCodes,
+        pulseOximeter: details.pulseOximeter === 'available',
+        heartRateMonitor: details.heartRateMonitor === 'available'
+      },
+      observations: suggestion.observations
+    } : null;
+    if (JSON.stringify(next) === JSON.stringify(geminiScenario)) return;
+    geminiScenario = next;
+    $('#runGemini').disabled = !available || geminiPending;
+    $('#geminiFindings').hidden = true;
+    $('#geminiClarification').hidden = true;
+    $('#geminiStatus').textContent = available
+      ? 'Gemini reviews the simulated check-in. Only finding categories are sent to Google.'
+      : 'Open CREW CHECK with the Gemini launcher to enable this review.';
+  }
+
+  async function runGemini() {
+    if (geminiPending || !geminiScenario) return;
+    var reviewing = geminiScenario;
+    var button = $('#runGemini');
+    var status = $('#geminiStatus');
+    var findings = $('#geminiFindings');
+    var clarification = $('#geminiClarification');
+    geminiPending = true;
+    button.disabled = true;
+    findings.hidden = true;
+    clarification.hidden = true;
+    status.textContent = 'Gemini is reviewing the simulated findings…';
+    try {
+      var response = await fetch('/api/gemini-analysis', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reviewing.request), signal: AbortSignal.timeout(22000)
+      });
+      var result = await response.json();
+      if (reviewing !== geminiScenario) return;
+      if (!response.ok) {
+        status.textContent = result.error;
+        return;
+      }
+      findings.replaceChildren(...result.priority.map(function (index) {
+        var item = document.createElement('li');
+        item.textContent = reviewing.observations[index];
+        return item;
+      }));
+      findings.hidden = false;
+      clarification.textContent = result.clarification;
+      clarification.hidden = !result.clarification;
+      status.textContent = 'Gemini 2.5 Flash-Lite · prioritized review';
+    } catch {
+      if (reviewing === geminiScenario) status.textContent = 'Gemini is unavailable. Use the crew guidance above.';
+    } finally {
+      geminiPending = false;
+      button.disabled = false;
+    }
+  }
 
   function setLocalAIObservations(observations) {
     if (JSON.stringify(aiObservations) === JSON.stringify(observations)) return;
@@ -807,6 +875,7 @@
      EVENTS
      ============================================================ */
   function bindEvents() {
+    $('#runGemini').addEventListener('click', runGemini);
     $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */
     $$('.tab').forEach(function (tab) {
