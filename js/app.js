@@ -535,6 +535,11 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reviewing.request), signal: AbortSignal.timeout(22000)
       });
+      if (reviewing !== geminiScenario) return;
+      if (response.status === 404) {
+        status.textContent = 'This server is missing the cloud AI endpoint. Stop the old server and open CREW CHECK with the latest Bedrock or Gemini launcher.';
+        return;
+      }
       var result = await response.json();
       if (reviewing !== geminiScenario) return;
       if (!response.ok) {
