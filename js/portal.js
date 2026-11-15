@@ -6,10 +6,9 @@
   const maxReadings = 5000;
   const freshnessMs = 15000;
   const milestones = [
-    'Falcon 9 lifted off from Kennedy Space Center at 10:02 p.m. EDT.',
-    'Dragon continued its flight in low Earth orbit.',
+    'Falcon 9 lifted off from Kennedy Space Center at 00:02 UTC.',
     'The four civilian crew members continued their flight in low Earth orbit.',
-    'Dragon splashed down off the Florida coast at 7:06 p.m. EDT.'
+    'Dragon splashed down off the Florida coast at 23:06 UTC.'
   ];
 
   function boot() {
@@ -20,6 +19,7 @@
     let view = 'home';
     let wearableBack = 'home';
     let activeMission;
+    let replayDay = 1;
     let latest;
     let expiry;
     let recording = false;
@@ -39,23 +39,24 @@
       const dashboard = ['simulator', 'replay', 'dashboard'].includes(next);
       byId('portal').hidden = dashboard;
       consoleView.hidden = !dashboard;
-      for (const name of ['home', 'missionConsole', 'offlineBuild', 'mission', 'wearable']) byId(name + 'View').hidden = next !== name;
+      for (const name of ['home', 'missionConsole', 'mission', 'wearable']) byId(name + 'View').hidden = next !== name;
       consoleView.classList.toggle('replay-mode', next === 'replay');
       consoleView.classList.toggle('mission-mode', next === 'dashboard');
       byId('i4Replay').hidden = next !== 'replay';
+      byId('i4Records').hidden = next !== 'replay';
+      if (next !== 'replay') byId('i4ReplayContext').hidden = true;
       for (const id of ['missionWearable', 'captureWearable', 'missionWearableStatus', 'missionProfile']) {
         byId(id).hidden = next !== 'dashboard';
       }
       byId('consoleMode').textContent = { simulator: 'Health Monitoring System', replay: 'I4 mission playback', dashboard: 'Mission console' }[next] || '';
       if (next === 'simulator') Console.open('simulator', Store.load() || window.CC_SAMPLE.build(), '');
-      if (next === 'replay') showReplay();
+      if (next === 'replay') {
+        showReplay();
+        window.CC_OPEN_I4_RECORDS?.();
+      }
       if (next === 'mission') showSavedMissions();
       if (next === 'missionConsole') {
         const frame = byId('missionConsoleFrame');
-        if (!frame.hasAttribute('src')) frame.src = frame.dataset.src;
-      }
-      if (next === 'offlineBuild') {
-        const frame = byId('offlineBuildFrame');
         if (!frame.hasAttribute('src')) frame.src = frame.dataset.src;
       }
       if (next === 'wearable') showWearableHistory();
@@ -80,7 +81,7 @@
     }
 
     function showReplay() {
-      const day = Number(byId('i4Day').value);
+      const day = replayDay;
       const replay = window.CC_I4_DATA;
       const entries = replay.entries.filter(entry => entry.day <= day &&
         ['measured', 'digitized'].includes(entry.source));
@@ -88,11 +89,13 @@
       byId('i4MilestoneText').textContent = milestones[day - 1];
       byId('i4DataStatus').textContent = current
         ? 'Historical readings available. Open Action plan for the detector’s analysis.'
-        : 'Health data pending for this day. No detection result is available.';
+        : 'No individual vital-sign check-in is available for this date.';
       consoleView.classList.toggle('replay-no-data', !current);
+      byId('i4ReplayContext').hidden = Boolean(current);
       Console.open('replay', {
         ...Store.emptyMission(), name: 'Inspiration4', crew: replay.crew, flightDay: day, entries
       }, '');
+      window.CC_SET_I4_REPLAY_DAY?.(day, current, entries);
     }
 
     function showSavedMissions() {
@@ -224,7 +227,11 @@
       show('simulator');
       document.querySelector('[data-tab="plan"]').click();
     });
-    byId('i4Day').addEventListener('change', showReplay);
+    document.querySelectorAll('[data-i4-day]').forEach(button => button.addEventListener('click', () => {
+      replayDay = Number(button.dataset.i4Day);
+      document.querySelectorAll('[data-i4-day]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      showReplay();
+    }));
     byId('missionForm').addEventListener('submit', event => {
       event.preventDefault();
       const details = Object.fromEntries([...new FormData(event.currentTarget)]

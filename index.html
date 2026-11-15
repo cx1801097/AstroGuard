@@ -18,7 +18,6 @@
       <button type="button" class="card portal-option" data-open="replay"><strong>I4 mission playback</strong><span>Review Inspiration4 by mission day.</span></button>
       <button type="button" class="card portal-option" data-open="missionConsole"><strong>New mission</strong><span>Open the crew-operated mission console.</span></button>
       <button type="button" class="card portal-option" data-open="wearable"><strong>Connect wearable device</strong><span>Connect live over Bluetooth or import readings from your watch app.</span></button>
-      <button type="button" class="card portal-option portal-option-wide" data-open="offlineBuild"><strong>Offline build</strong><span>Open the standalone build — no server, no build step, no network calls.</span></button>
     </div>
   </section>
   <section id="missionConsoleView" class="portal-view" hidden>
@@ -31,15 +30,6 @@
     </nav>
     <h1>New mission</h1>
     <iframe id="missionConsoleFrame" title="CREW CHECK mission console" data-src="new-mission/index.html"></iframe>
-  </section>
-  <section id="offlineBuildView" class="portal-view" hidden>
-    <nav class="portal-actions" aria-label="Offline build navigation">
-      <button type="button" class="btn" data-open="home">Home</button>
-      <a class="btn" href="offline-i4/index.html" target="_blank" rel="noopener">Open in a new tab</a>
-    </nav>
-    <h1>Offline build</h1>
-    <p>The standalone CREW CHECK build, published under <code>offline-i4/</code>. It opens straight from the filesystem with no server, no build step and no network calls — the same console, packaged to work on a laptop in a habitat.</p>
-    <iframe id="offlineBuildFrame" title="CREW CHECK offline build" data-src="offline-i4/index.html"></iframe>
   </section>
   <section id="missionView" class="portal-view" hidden>
     <button type="button" class="btn" data-open="home">Home</button>
@@ -149,13 +139,14 @@
 </details>
 <section id="i4Replay" class="replay-banner card" hidden>
   <h2>Inspiration4 mission playback</h2>
-  <div class="field"><label for="i4Day">Mission day · Eastern time</label><select id="i4Day">
-    <option value="1">September 15 · Launch</option><option value="2">September 16 · In orbit</option>
-    <option value="3">September 17 · In orbit</option><option value="4">September 18 · Splashdown</option>
-  </select></div>
+  <p class="muted">September 16–18, 2021 · UTC</p>
+  <nav class="i4-timeline" aria-label="Mission timeline · UTC">
+    <button class="btn" type="button" data-i4-day="1" aria-pressed="true"><strong>Sep 16</strong><span>Launch</span></button>
+    <button class="btn" type="button" data-i4-day="2" aria-pressed="false"><strong>Sep 17</strong><span>In orbit</span></button>
+    <button class="btn" type="button" data-i4-day="3" aria-pressed="false"><strong>Sep 18</strong><span>Splashdown</span></button>
+  </nav>
   <p id="i4MilestoneText"></p>
-  <p id="i4DataStatus" role="status"></p>
-  <p><a href="https://www.spacex.com/launches/inspiration4/">SpaceX mission timeline</a> · <a href="https://www.nasa.gov/osdr-latest-news-i4-mission-datasets/">NASA research archive</a></p>
+  <p><a href="https://inspiration4.com/press/inspiration4-crew-launches-first-all-civilian-orbital/">Launch report</a> · <a href="https://inspiration4.com/press/kennedy-space-center-fl-september-18-2021--after/">Splashdown report</a> · <a href="https://www.nasa.gov/osdr-latest-news-i4-mission-datasets/">NASA research archive</a></p>
 </section>
 <header class="topbar">
   <div class="brand">
@@ -192,6 +183,18 @@
 
 <main class="shell">
 
+  <aside id="i4ReplayContext" class="panel" hidden aria-labelledby="i4ReplayContextTitle">
+    <div class="panel-head"><h2 id="i4ReplayContextTitle">Replay context</h2></div>
+    <div class="i4-context-content">
+      <p id="i4DataStatus" role="status"></p>
+      <dl>
+        <dt>Cabin environment</dt><dd>Chart estimates by published flight day.</dd>
+        <dt>Blood tests</dt><dd>Reported samples before launch and after return.</dd>
+        <dt>Research comparisons</dt><dd>Published comparisons across mission phases.</dd>
+      </dl>
+    </div>
+  </aside>
+
   <!-- ============ CHECK-IN ============ -->
   <aside class="panel checkin-panel">
     <div class="panel-head">
@@ -223,6 +226,10 @@
         </select>
       </div>
       <div id="metricList" class="metric-list"></div>
+      <details class="hazard-inputs"><summary>Hazard monitoring readings</summary>
+        <p class="muted">Use current readings from your instruments or lab report. Leave unavailable fields blank.</p>
+        <div id="hazardInputs"></div>
+      </details>
 
       <p class="section-label">Self-reported symptoms</p>
       <div id="symptomList" class="symptom-list"></div>
@@ -260,6 +267,99 @@
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
     </div>
+
+  <section id="i4Records" hidden aria-labelledby="i4RecordsTitle">
+    <h3 id="i4RecordsTitle">Mission data</h3>
+    <p id="i4RecordsStatus" role="status"></p>
+    <div id="i4RecordsControls" hidden>
+      <nav class="tabs i4-view-tabs" aria-label="Replay views">
+        <button class="tab is-active" type="button" data-i4-view="overview" aria-pressed="true">Overview</button>
+        <button class="tab" type="button" data-i4-view="trends" aria-pressed="false">Trends</button>
+        <button class="tab" type="button" data-i4-view="plan" aria-pressed="false">Action plan</button>
+      </nav>
+      <div id="i4Overview">
+      <section class="i4-overview card">
+        <div class="i4-overview-heading"><div><h4>Cabin environment</h4>
+          <p class="muted">Approximate ranges from the published chart. Its flight-day clock is separate from the timeline above.</p></div>
+          <div class="field"><label for="i4CabinDay">Chart flight day</label><select id="i4CabinDay">
+            <option value="FD 1">Flight day 1</option><option value="FD 2">Flight day 2</option><option value="FD 3">Flight day 3</option>
+          </select></div>
+        </div>
+        <div id="i4CabinCards" class="i4-metrics"></div>
+      </section>
+      <div class="i4-insights">
+        <section class="i4-overview card"><h4>Blood tests</h4><p>The study reports samples taken before launch and after return. Choose a sample time to see what was measured.</p><button class="btn" type="button" data-i4-collection="labs">Browse blood tests</button></section>
+        <section class="i4-overview card"><h4>Research comparisons</h4><p>The paper compares phases of the mission. Each comparison keeps the study’s original label and units.</p><button class="btn" type="button" data-i4-collection="comparisons">Browse comparisons</button></section>
+        <section class="i4-overview card"><h4>AI replay notes</h4><p id="i4ReplayNote"></p><p id="i4CabinNote"></p><p class="muted">Prepared from the historical records and available offline.</p></section>
+      </div>
+      </div>
+      <div id="i4Trends" hidden>
+        <section class="i4-overview card">
+          <h4>Cabin environment trends</h4>
+          <p class="muted">Chart estimates across three published flight-day windows. Gaps are missing readings.</p>
+          <div class="field"><label for="i4TrendMetric">Cabin measurement</label><select id="i4TrendMetric"></select></div>
+          <div id="i4CabinTrend"></div>
+          <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11357997/figure/Fig13/">Published cabin figure</a>
+        </section>
+        <section class="i4-overview card">
+          <h4>Crew lab trends</h4>
+          <p class="muted">Choose a study crew code and a lab test. L means days from launch and R means days from return. Sample positions are shown in order.</p>
+          <div class="i4-filter-row">
+            <div class="field"><label for="i4LabCrew">Study crew code</label><select id="i4LabCrew"></select></div>
+            <div class="field"><label for="i4LabMetric">Laboratory measurement</label><select id="i4LabMetric"></select></div>
+          </div>
+          <div id="i4LabTrend" aria-live="polite"></div>
+          <a href="https://osdr.nasa.gov/bio/repo/data/missions/SpaceX%20Inspiration4">NASA Inspiration4 studies</a>
+        </section>
+        <section class="i4-overview card">
+          <h4>Published phase comparisons</h4>
+          <p class="muted">Each point is a reported estimate for the selected comparison. Values retain the study’s units.</p>
+          <div class="i4-filter-row">
+            <div class="field"><label for="i4CompareMetric">Research measurement</label><select id="i4CompareMetric"></select></div>
+            <div class="field"><label for="i4ComparePhase">Compared phases</label><select id="i4ComparePhase"></select></div>
+          </div>
+          <div id="i4CompareTrend" aria-live="polite"></div>
+          <a href="https://doi.org/10.1038/s41586-024-07648-x">Published study and supplementary tables</a>
+        </section>
+      </div>
+      <section id="i4Plan" class="i4-overview card" hidden aria-labelledby="i4PlanTitle">
+        <h4 id="i4PlanTitle">Replay action plan</h4>
+        <p><strong>Crew vital-sign assessment</strong> <span class="chip" id="i4PlanStatus">UNKNOWN</span></p>
+        <p id="i4PlanAssessment"></p>
+        <h4>What the replay found</h4>
+        <ul id="i4PlanEvidence"></ul>
+        <h4>What to review next</h4>
+        <p id="i4PlanNext"></p>
+        <h4>AI review</h4>
+        <p>Historical records stay in replay. Using CREW CHECK’s rule-based assessment and the offline replay notes.</p>
+        <p class="muted">Historical replay for demonstration. Follow mission-approved procedures for an active crew check.</p>
+      </section>
+      <section id="i4Hazards" class="i4-overview card" hidden aria-labelledby="i4HazardsTitle">
+        <h4 id="i4HazardsTitle">Spaceflight hazard review</h4>
+        <p class="muted">What I4 can show and what to track on an active mission.</p>
+        <div id="i4HazardCards" class="i4-insights"></div>
+        <a href="https://www.nasa.gov/hrp/hazards/">NASA human spaceflight hazards</a>
+      </section>
+      <details id="i4SourceRecords"><summary>View source records</summary>
+      <div class="field"><label for="i4Collection">Collection</label><select id="i4Collection">
+        <option value="cabin">Cabin environment · digitized</option>
+        <option value="labs">Blood tests · original laboratory results</option>
+        <option value="comparisons">Published research comparisons</option>
+      </select></div>
+      <p id="i4TableStatus" role="status"></p>
+      <div class="field"><label for="i4RecordGroup" id="i4RecordGroupLabel">Time period</label><select id="i4RecordGroup"></select></div>
+      <p id="i4RecordsSource"></p>
+      <div class="i4-table-scroll" tabindex="0" role="region" aria-label="Inspiration4 research records">
+        <table class="i4-record-table">
+          <thead><tr><th scope="col">Time or comparison</th><th scope="col">Crew or scope</th><th scope="col">Measurement</th><th scope="col">Value</th><th scope="col">Source record</th></tr></thead>
+          <tbody id="i4RecordsBody"></tbody>
+        </table>
+      </div>
+      <div><button class="btn" id="i4PrevRecords" type="button">Previous rows</button>
+        <button class="btn" id="i4NextRecords" type="button">Next rows</button></div>
+      </details>
+    </div>
+  </section>
 
     <div class="panes">
 
@@ -299,10 +399,12 @@
               <p id="crewNextStep"></p>
               <p id="crewResourceStep" hidden></p>
             </div>
-            <div id="optionalAiControls" hidden>
+            <div id="astroguardEvidence" hidden></div>
+            <div id="optionalAiControls">
             <div id="geminiReview">
-              <button type="button" id="runGemini" class="btn btn-primary">Analyze mission with AI</button>
-              <p id="geminiStatus" role="status">Cloud AI reviews finding categories from the simulated check-in.</p>
+              <h4>AI review</h4>
+              <p id="geminiStatus" role="status">Using CREW CHECK’s rule-based guidance above.</p>
+              <button type="button" id="runGemini" class="btn btn-primary" disabled>Analyze mission with AI</button>
               <ol id="geminiFindings" hidden></ol>
               <p id="geminiClarification" hidden></p>
             </div>
@@ -328,6 +430,10 @@
           </aside>
           <div class="plan-evidence">
             <div id="healthDetection" class="card alert-card" aria-live="polite"></div>
+            <section id="hazardReview" class="card alert-card" hidden aria-labelledby="hazardReviewTitle">
+              <h4 id="hazardReviewTitle">Spaceflight hazard detection</h4>
+              <div id="hazardResults"></div>
+            </section>
             <details id="groundReview" class="card alert-card" hidden>
               <summary>Review ground handoff</summary>
               <p>Review the draft and copy it into the mission’s approved private medical channel when appropriate. The demo has no connection to NASA.</p>
@@ -376,6 +482,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/detection.js"></script>
+<script src="js/hazard-monitor.js"></script>
 <script src="js/scoring.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>
@@ -386,7 +493,11 @@
 <script src="js/wearable.js"></script>
 <script src="js/wearable-files.js"></script>
 <script src="js/local-ai.js"></script>
-<script src="js/app.js?v=3"></script>
+<script src="js/astroguard-evidence.js"></script>
+<script src="js/app.js?v=4"></script>
+<script src="data/i4-offline.js"></script>
+<script src="js/i4-records.js"></script>
 <script src="js/portal.js"></script>
 </body>
 </html>
+

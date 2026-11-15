@@ -65,6 +65,7 @@ a { color: var(--cyan); }
 .small { font-size: 12.5px; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 [hidden] { display: none !important; }
+#missionHazardPreview li, .saved-hazard-results li { margin-bottom: .7rem; }
 
 :focus-visible {
   outline: 2px solid var(--cyan);
