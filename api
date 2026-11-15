@@ -6,3 +6,6 @@ import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-r
 
 const client = new BedrockRuntimeClient({ region: "ap-southeast-2" });
 // AWS credentials are picked up automatically from the environment
+
+AKIAXLA4DH6C76VGDJRZ
+JoguvkQuy1aik9JxOLwShEyOorWtJsR+zRpz2wv8
