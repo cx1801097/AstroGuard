@@ -112,20 +112,22 @@ window.CC_CHARTS = (function () {
 
     var svg = ['<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart chart-wide" role="img" aria-label="readiness trend">'];
 
-    /* zone bands */
-    svg.push('<rect x="' + pad.l + '" y="' + y(100).toFixed(1) + '" width="' + (W - pad.l - pad.r) + '" height="' + (y(75) - y(100)).toFixed(1) + '" fill="rgba(46,230,168,0.06)"/>');
-    svg.push('<rect x="' + pad.l + '" y="' + y(75).toFixed(1) + '" width="' + (W - pad.l - pad.r) + '" height="' + (y(50) - y(75)).toFixed(1) + '" fill="rgba(255,194,75,0.07)"/>');
-    svg.push('<rect x="' + pad.l + '" y="' + y(50).toFixed(1) + '" width="' + (W - pad.l - pad.r) + '" height="' + (y(0) - y(50)).toFixed(1) + '" fill="rgba(255,84,112,0.08)"/>');
+    /* zone bands — thresholds match the GO / CAUTION / NO-GO triage cut */
+    svg.push('<rect x="' + pad.l + '" y="' + y(100).toFixed(1) + '" width="' + (W - pad.l - pad.r) + '" height="' + (y(80) - y(100)).toFixed(1) + '" fill="rgba(46,230,168,0.06)"/>');
+    svg.push('<rect x="' + pad.l + '" y="' + y(80).toFixed(1) + '" width="' + (W - pad.l - pad.r) + '" height="' + (y(55) - y(80)).toFixed(1) + '" fill="rgba(255,194,75,0.07)"/>');
+    svg.push('<rect x="' + pad.l + '" y="' + y(55).toFixed(1) + '" width="' + (W - pad.l - pad.r) + '" height="' + (y(0) - y(55)).toFixed(1) + '" fill="rgba(255,84,112,0.08)"/>');
 
     [0, 25, 50, 75, 100].forEach(function (v) {
+      var isThreshold = (v === 75 || v === 50);
       svg.push('<line x1="' + pad.l + '" y1="' + y(v).toFixed(1) + '" x2="' + (W - pad.r) + '" y2="' + y(v).toFixed(1) +
-        '" stroke="' + (v === 75 || v === 50 ? 'rgba(125,147,173,0.35)' : 'rgba(28,44,66,0.9)') + '" stroke-width="1"' + (v === 75 || v === 50 ? ' stroke-dasharray="4 4"' : '') + '/>');
+        '" stroke="' + (isThreshold ? 'rgba(125,147,173,0.35)' : 'rgba(28,44,66,0.9)') + '" stroke-width="1"' + (isThreshold ? ' stroke-dasharray="4 4"' : '') + '/>');
       svg.push('<text x="' + (pad.l - 8) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end" class="chart-axis">' + v + '</text>');
     });
 
-    /* day labels */
-    svg.push('<text x="' + pad.l + '" y="' + (H - 6) + '" class="chart-axis">FD ' + dMin + '</text>');
-    svg.push('<text x="' + (W - pad.r) + '" y="' + (H - 6) + '" text-anchor="end" class="chart-axis">FD ' + dMax + '</text>');
+    /* day labels; caller supplies formatDay for non-flight-day axes */
+    var fd = opts.formatDay || function (d) { return 'FD ' + d; };
+    svg.push('<text x="' + pad.l + '" y="' + (H - 6) + '" class="chart-axis">' + esc(fd(dMin)) + '</text>');
+    svg.push('<text x="' + (W - pad.r) + '" y="' + (H - 6) + '" text-anchor="end" class="chart-axis">' + esc(fd(dMax)) + '</text>');
 
     var path = pts.map(function (p, i) {
       return (i ? 'L' : 'M') + x(p.day).toFixed(1) + ' ' + y(p.value).toFixed(1);
@@ -136,7 +138,7 @@ window.CC_CHARTS = (function () {
     svg.push('<path d="' + path + '" fill="none" stroke="#39d0ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
 
     pts.forEach(function (p) {
-      var c = p.value >= 75 ? '#2ee6a8' : p.value >= 50 ? '#ffc24b' : '#ff5470';
+      var c = p.value >= 80 ? '#2ee6a8' : p.value >= 55 ? '#ffc24b' : '#ff5470';
       svg.push('<circle cx="' + x(p.day).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="2.8" fill="' + c + '"/>');
     });
 
