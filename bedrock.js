@@ -26,6 +26,9 @@ function readReview(input, response) {
     const ids = input.findings.map((_, index) => String(index));
     result.priority = [...new Set(result.priority.filter(id => ids.includes(id)))].slice(0, 3);
   }
+  if (result && typeof result === "object" && !input.questions.includes(result.clarification)) {
+    result.clarification = "none";
+  }
   return validateReview(input, result, MODEL, PROVIDER);
 }
 

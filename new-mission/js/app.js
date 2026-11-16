@@ -224,18 +224,20 @@
     return entry ? evaluateValues(entry.values, entry) : null;
   }
 
-  function renderHazardCheck(container, entry) {
-    var monitor = window.CC_HAZARDS;
-    if (!monitor || !container) return;
+  function hazardInput(entry) {
     var crew = state.record.crewId;
     var candidate = entry || { values: state.draft, day: nextFlightDay(state.preflight ? 'preflight' : 'flight', nowISO()) };
-    monitor.render(container, {
+    return {
       values: candidate.values, source: 'measured', day: state.record.missionStart ? candidate.day : null, crew: crew,
       sleepTarget: candidate.values.sleepTargetAtCheck ?? profile().sleepTargetHours,
       history: entries().filter(function (previous) { return previous.phase === 'flight'; }).map(function (previous) {
         return { day: previous.day, crew: crew, source: 'measured', values: previous.values };
       })
-    });
+    };
+  }
+
+  function renderHazardCheck(container, entry) {
+    if (container) window.CC_HAZARDS?.render(container, hazardInput(entry));
   }
 
   function dayLabel(entry) {
@@ -609,7 +611,7 @@
         '<li><span>2</span><div><strong>Run a check.</strong> Vitals, sleep, mood, symptoms. Every reading you enter is compared to your own baseline as well as to clinical limits.</div></li>' +
         '<li><span>3</span><div><strong>Act, then hand over.</strong> You get a verdict and specific actions, and a structured report you can read to the ground.</div></li>' +
       '</ol>' +
-      '<p class="muted small">The form is in the left panel. Nothing is uploaded and no network is required.</p>' +
+      '<p class="muted small">The form is in the left panel. Check-ins work offline.</p>' +
       '</div>';
   }
 
@@ -630,11 +632,11 @@
     if (entry.phase === 'preflight') badges.push('<span class="badge badge-pre">PREFLIGHT</span>');
     if (pending.length) badges.push('<span class="badge badge-pending">PROVISIONAL</span>');
     if (!pending.length && Object.keys(entry.confirm || {}).length) {
-      badges.push('<span class="badge badge-confirmed">CONFIRMED</span>');
+      badges.push('<span class="badge badge-confirmed">FOLLOW-UP RECORDED</span>');
     }
     var wearableSources = Object.values(entry.wearable || {}).map(function (sample) {
-      var label = D.METRIC_BY_ID[sample.metric].label;
-      return '<li>' + esc(label + ': ' + sample.value + ' ' + sample.unit + ' · ' + sample.provider + ' · ' + sample.timestamp) + '</li>';
+      var label = D.METRIC_BY_ID[sample.metric]?.label || 'Cabin CO₂, one-hour average';
+      return '<li>' + esc(label + ': ' + sample.value + ' ' + sample.unit + ' · ' + (sample.deviceId || sample.provider) + ' · ' + sample.timestamp) + '</li>';
     }).join('');
 
     return '<article class="check-card">' +
@@ -645,11 +647,12 @@
       '</div>' +
       verdictHero(result) +
       driversCard(result) +
-      (wearableSources ? '<section class="card"><h4>Wearable readings used</h4><ul class="wearable-sources">' +
+      (wearableSources ? '<section class="card"><h4>Device readings used</h4><ul class="wearable-sources">' +
         wearableSources + '</ul></section>' : '') +
       (pending.length ? confirmCard(entry, result) : '') +
       actionsCard(result) +
       evidenceCard(result) +
+      followUpCard(entry, result) +
       handoverCard(entry, result) +
     '</article>';
   }
@@ -732,10 +735,10 @@
     }).join('');
 
     return '<section class="card confirm-card">' +
-      '<h4>Confirm before you escalate</h4>' +
+      '<h4>Recheck flagged readings</h4>' +
       '<p class="card-lede">' + pending.length + ' reading' + (pending.length === 1 ? '' : 's') +
         ' crossed an escalation threshold. A bad cuff, cold hands or a mis-placed sensor can do that. ' +
-        'Re-measure to confirm \u2014 a confirmed reading stands, a cleared one is logged as an artefact.</p>' +
+        'Re-measure when appropriate. Follow the mission escalation guidance immediately when indicated.</p>' +
       rows +
       '<div class="confirm-actions">' +
         '<button type="button" class="btn btn-primary" data-act="confirm-readings">Confirm readings</button>' +
@@ -901,16 +904,20 @@
         '. No measurement available in this check.', 72, '   '));
     }
 
-    if (Object.keys(entry.confirm || {}).length) {
+    var checkedHazards = window.CC_HAZARDS?.evaluate(hazardInput(entry)) || [];
+    var hazardAlerts = checkedHazards.filter(function (item) { return item.status === 'WARNING'; });
+    if (hazardAlerts.length) {
       push('');
-      push('   Confirmation of escalated readings:');
-      Object.keys(entry.confirm).forEach(function (id) {
-        var c = entry.confirm[id];
-        var m = D.METRIC_BY_ID[id];
-        if (!m) return;
-        push('     - ' + m.label + ': first ' + fmt(m, c.first) + ', re-measured ' + fmt(m, c.second) +
-          ' \u2192 ' + (c.resolved === 'confirmed' ? 'confirmed' : c.resolved));
+      push('   Spaceflight hazard warnings:');
+      hazardAlerts.forEach(function (item) {
+        push(wrap('- ' + item.title + ': ' + item.detail, 72, '     '));
       });
+    }
+    var followUp = followUpLines(entry);
+    if (followUp.length) {
+      push('');
+      push('   Crew follow-up:');
+      followUp.forEach(function (line) { push(wrap('- ' + line, 72, '     ')); });
     }
     push('');
 
@@ -988,6 +995,91 @@
     return idx > 0 ? list[idx - 1] : null;
   }
 
+  function followUpLines(entry) {
+    var lines = [];
+    var followUp = entry.followUp || {};
+    if (followUp.acknowledgedAt) lines.push('Crew acknowledged: ' + followUp.acknowledgedAt);
+    Object.keys(entry.confirm || {}).forEach(function (id) {
+      var metric = D.METRIC_BY_ID[id];
+      var check = entry.confirm[id];
+      if (!metric || !check || typeof check !== 'object') return;
+      var first = fmt(metric, check.first) + ' ' + metric.unit;
+      var original = Store.cleanWearable(check.originalWearable);
+      if (original) first += ' (' + original.provider + ', ' + original.timestamp + ')';
+      var outcome = check.resolved === 'unverified' ? 'No recheck recorded'
+        : fmt(metric, check.second) + ' ' + metric.unit +
+          (check.resolved === 'confirmed' ? ' (still flagged)' : ' (below escalation threshold on recheck)');
+      lines.push(metric.label + ': ' + first + ' → ' + outcome + ' · ' + check.at);
+    });
+    if ((entry.pending || []).length) lines.push('Readings awaiting recheck: ' + entry.pending.length);
+    if (followUp.gatewayReceipt) lines.push('Ground gateway receipt: ' + followUp.gatewayReceipt + ' · ' + followUp.gatewayAt);
+    if (followUp.handoverAt) lines.push('Crew reported sharing via the mission channel: ' + followUp.handoverAt);
+    return lines;
+  }
+
+  function followUpCard(entry, result) {
+    var followUp = entry.followUp || {};
+    var lines = followUpLines(entry);
+    if (result.triage === 'GO' && !lines.length) return '';
+    return '<section class="card"><h4>Crew follow-up</h4>' +
+      (lines.length ? '<ul>' + lines.map(function (line) { return '<li>' + esc(line) + '</li>'; }).join('') + '</ul>' : '') +
+      '<div class="card-actions">' +
+      (followUp.acknowledgedAt ? '' : '<button type="button" class="btn btn-quiet btn-sm" data-act="acknowledge-check">Acknowledge check</button>') +
+      (followUp.handoverAt ? '' : '<button type="button" class="btn btn-quiet btn-sm" data-act="record-handover">Record that I shared the report</button>') +
+      '</div><p class="muted small">Use the mission’s approved channel to share the report. The button records your action on this device.</p></section>';
+  }
+
+  function recordFollowUp(field) {
+    var entry = selectedEntry();
+    if (!entry || entry.followUp?.[field]) return;
+    var previous = entry.followUp;
+    entry.followUp = Object.assign({}, previous, { [field]: nowISO() });
+    if (!persist()) {
+      entry.followUp = previous;
+      toast('Could not save the follow-up on this device.');
+      return;
+    }
+    renderAll();
+    toast('Follow-up saved.');
+  }
+
+  var groundSendPending = false;
+
+  function groundPacket(entry, result) {
+    return {
+      schema: 'astroguard.handover.v1',
+      packetId: entry.id,
+      checkInAt: entry.at,
+      flightDay: entry.day,
+      mission: state.record.mission,
+      crewCallsign: state.record.crewId,
+      triage: result.triage,
+      report: buildHandover(entry, result)
+    };
+  }
+
+  async function sendGroundReport() {
+    var entry = selectedEntry();
+    var destination = profile().resources.groundGateway;
+    if (!entry || !destination || entry.followUp?.gatewayReceipt || groundSendPending) return;
+    var record = state.record;
+    var packet = groundPacket(entry, evaluateEntry(entry));
+    if (!window.confirm('Send this check-in’s reviewed health report and crew callsign to ' + destination + '?')) return;
+    groundSendPending = true;
+    renderAssessment();
+    try {
+      var receipt = await window.CC_MISSION_INTERFACES.send(destination, packet);
+      entry.followUp = Object.assign({}, entry.followUp, { gatewayReceipt: receipt, gatewayAt: nowISO() });
+      var saved = state.record === record && record.entries.includes(entry) && persist();
+      toast(saved ? 'Ground gateway acknowledged the packet.' : 'Gateway acknowledged the packet. The receipt could not be saved.');
+    } catch {
+      toast('Delivery could not be confirmed. Check the mission channel before trying again.');
+    } finally {
+      groundSendPending = false;
+      renderAll();
+    }
+  }
+
   function handoverCard(entry, result) {
     var text = buildHandover(entry, result);
     return '<section class="card handover-card">' +
@@ -1004,8 +1096,18 @@
       '<details class="report-wrap">' +
         '<summary>Show report text</summary>' +
         '<pre class="report" data-role="report">' + esc(text) + '</pre>' +
-      '</details>' +
+      '</details>' + groundControls(entry) +
     '</section>';
+  }
+
+  function groundControls(entry) {
+    var gateway = profile().resources.groundGateway;
+    if (!gateway) return '<p class="muted small">Set a mission-approved ground gateway in Mission settings to send this report.</p>';
+    return '<p class="muted small">Ground gateway: ' + esc(gateway) +
+      '. Review the report above before sending. It includes the crew callsign.</p>' +
+      (entry.followUp?.gatewayReceipt ? '<p>Gateway receipt: ' + esc(entry.followUp.gatewayReceipt) + '</p>' :
+        '<button type="button" class="btn btn-quiet btn-sm" data-act="send-ground"' +
+        (groundSendPending ? ' disabled' : '') + '>Send reviewed report to ground</button>');
   }
 
   /* ============================================================
@@ -2079,7 +2181,11 @@
 
     entry.pending.forEach(function (id) {
       var second = state.confirm[id];
-      if (!isNum(second)) { still.push(id); return; }
+      var metric = D.METRIC_BY_ID[id];
+      if (!metric || !isNum(second) || second < metric.min || second > metric.max) {
+        still.push(id);
+        return;
+      }
       var first = entry.values[id];
       var trial = clone(values);
       trial[id] = second;
@@ -2089,7 +2195,8 @@
         first: first,
         second: second,
         at: nowISO(),
-        resolved: level >= 3 ? 'confirmed' : 'artefact'
+        resolved: level >= 3 ? 'confirmed' : 'below_threshold',
+        originalWearable: entry.wearable?.[id]
       };
       values[id] = second;
       if (entry.wearable) delete entry.wearable[id];
@@ -2099,13 +2206,15 @@
     entry.confirm = confirm;
     entry.pending = still;
     state.confirm = {};
-    persist();
+    var saved = persist();
     renderAll();
 
-    if (still.length) {
+    if (!saved) {
+      toast('Rechecks are in memory only. Storage is unavailable.');
+    } else if (still.length) {
       toast(still.length + ' reading' + (still.length === 1 ? '' : 's') + ' still need a re-measure.');
     } else {
-      toast('Readings confirmed.');
+      toast('Recheck results saved.');
     }
   }
 
@@ -2118,9 +2227,10 @@
     });
     entry.confirm = confirm;
     entry.pending = [];
-    persist();
+    var saved = persist();
     renderAll();
-    toast('Recorded as unverified. The handover report will say so.');
+    toast(saved ? 'Recorded as unverified. The handover report will say so.' :
+      'Unverified readings are in memory only. Storage is unavailable.');
   }
 
   function copyLast() {
@@ -2315,6 +2425,26 @@
       state.wearableDraft[sample.metric] = sample;
       toast('Wearable reading added with its original timestamp. Run check to save it.');
     });
+    $('#equipmentReadingFile').addEventListener('change', async function (event) {
+      var input = event.currentTarget;
+      var file = input.files[0];
+      input.value = '';
+      if (!file || !hasRecord()) return;
+      try {
+        if (file.size > 4096) throw new Error('file size');
+        var envelope = JSON.parse(await file.text());
+        if (envelope?.schema !== 'astroguard.observation.v1') throw new Error('schema');
+        var sample = window.CC_MISSION_INTERFACES.observation(envelope.reading);
+        if (!sample) throw new Error('reading');
+        var field = $('#f-' + sample.metric) || $('#missionHazardInputs [data-hazard-input="' + sample.metric + '"]');
+        if (!field || sample.value < Number(field.min) || sample.value > Number(field.max)) throw new Error('range');
+        setDraftValue(sample.metric, String(sample.value));
+        state.wearableDraft[sample.metric] = sample;
+        toast('Equipment reading loaded. Review it and run the check to save it.');
+      } catch {
+        toast('Equipment reading rejected. Check the format, sensor quality, units and enabled instruments.');
+      }
+    });
     $('#setupForm').addEventListener('submit', saveSetup);
     $('#checkForm').addEventListener('submit', runCheck);
 
@@ -2378,6 +2508,9 @@
       if (act === 'focus-form') focusForm();
       else if (act === 'confirm-readings') confirmReadings();
       else if (act === 'accept-unverified') acceptUnverified();
+      else if (act === 'acknowledge-check') recordFollowUp('acknowledgedAt');
+      else if (act === 'record-handover') recordFollowUp('handoverAt');
+      else if (act === 'send-ground') sendGroundReport();
       else if (act === 'open-assistant') selectTab('assistant');
       else if (act === 'copy-report') copyReport();
       else if (act === 'download-report') downloadReport();
@@ -2500,6 +2633,7 @@
     buildSetupProfile();
     buildForm();
     window.CC_HAZARDS?.bind($('#missionHazardInputs'), false, function (id, value) {
+      delete state.wearableDraft[id];
       setDraftValue(id, value === null ? '' : String(value));
     });
     bindEvents();

@@ -515,7 +515,7 @@
 
   function setGeminiScenario(detection, suggestion) {
     var inSimulator = state.mode === 'simulator';
-    var example = detection.source !== 'simulated';
+    var example = detection.source !== 'simulated' || suggestion.severity === 'UNKNOWN' || !suggestion.findingCodes.length;
     var details = example ? {} : state.mission.details || {};
     if (cloudAIUrl && inSimulator && example) {
       var preset = D.SCENARIOS.nominal;
@@ -534,6 +534,7 @@
         heartRateMonitor: details.heartRateMonitor === 'available'
       } : null,
       observations: canReview ? suggestion.observations : [],
+      findingUrgencies: canReview ? suggestion.findingUrgencies : [],
       status: !inSimulator ? 'AI review is limited to the simulated demo.' :
         !cloudAIUrl ? 'Cloud AI is unavailable in this edition.' :
         !canReview ? 'The simulated check-in has too little usable data for AI review.' :
@@ -604,10 +605,9 @@
         return;
       }
       var priority = result.priority.map(function (index) { return reviewedIndices[index]; });
-      var remaining = reviewing.observations.filter(function (_, index) { return !priority.includes(index); });
-      renderObservations(findings, priority.map(function (index) {
-        return reviewing.observations[index];
-      }).concat(remaining));
+      renderObservations(findings, Detection.orderReviewObservations(
+        reviewing.observations, reviewing.findingUrgencies, priority
+      ));
       findings.hidden = false;
       clarification.textContent = result.clarification;
       clarification.hidden = !result.clarification;

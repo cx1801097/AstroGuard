@@ -222,3 +222,92 @@ test('a flagged pressure sensor is excluded while a chronic bone finding remains
   assert.match(suggestion.situation, /Bone density change/);
   assert.doesNotMatch(suggestion.situation, /220|Systolic/);
 });
+
+test('34-day simulated mission tracks stable checks, failed sensors, multiple hazards and recovery', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const hazards = require('../js/hazard-monitor');
+  const base = {
+    heartRate: 68, spo2: 98, systolic: 118, sleepHours: 8, radiationDose: 30, radiationLimit: 50,
+    boneDensityPct: -1, boneLossLimit: 3, cabinCo2Avg: 2, wbc: 6, wbcLow: 4, wbcHigh: 11
+  };
+  const inputs = Array.from({ length: 30 }, (_, i) => checkIn(i + 1, { ...base }));
+  inputs.push(
+    checkIn(31, { ...base, spo2: 84, systolic: 220, cabinCo2Avg: 5 },
+      { quality: { spo2: 'invalid', systolic: 'invalid', cabinCo2Avg: 'invalid' } }),
+    checkIn(32, { ...base, spo2: 92, heartRate: 110, sleepHours: 5, radiationDose: 47, cabinCo2Avg: 3.5 }),
+    checkIn(33, { ...base, spo2: 92, heartRate: 110, sleepHours: 5, radiationDose: 51, cabinCo2Avg: 3.7,
+      boneDensityPct: -3.5, wbc: 12 }),
+    checkIn(34, { ...base, radiationDose: 51, boneDensityPct: -3.5, wbc: 12 })
+  );
+  const results = inputs.map((sample, i) => {
+    const history = inputs.slice(0, i);
+    const vital = evaluate(sample, history);
+    const hazard = hazards.evaluate({ ...sample, history, sleepTarget: 7.5 });
+    const score = window.CC_SCORING.evaluate(sample.values, { ...sample, entries: history });
+    return { vital, hazard, suggestion: crewSuggestion(vital, {}, [], score.alerts, hazard) };
+  });
+  assert.ok(results.slice(0, 30).every(({ suggestion }) => suggestion.severity === 'NORMAL'));
+  assert.equal(results[30].suggestion.severity, 'UNKNOWN');
+  assert.equal(results[30].hazard.find(item => item.id === 'cabinCo2').status, 'UNKNOWN');
+  assert.doesNotMatch(results[30].suggestion.situation, /220 mmHg|Blood oxygen is 84/);
+  assert.equal(results[31].vital.severity, 'WARNING');
+  assert.equal(results[32].vital.severity, 'CRITICAL');
+  const warnings = results[32].hazard.filter(item => item.status === 'WARNING');
+  assert.deepEqual(warnings.map(item => item.id), ['radiationDose', 'sleepHours', 'boneDensityPct', 'cabinCo2', 'wbc']);
+  assert.match(warnings.find(item => item.id === 'sleepHours').detail, /two consecutive/);
+  assert.equal(results[33].vital.severity, 'NORMAL');
+  assert.equal(results[33].suggestion.severity, 'WARNING');
+  assert.deepEqual(results[33].hazard.filter(item => item.status === 'WARNING').map(item => item.id),
+    ['radiationDose', 'boneDensityPct', 'wbc']);
+});
+
+test('ambiguous or foreign prior readings cannot establish consecutive low sleep', () => {
+  const hazards = require('../js/hazard-monitor');
+  const current = checkIn(4, { sleepHours: 5 });
+  const history = [checkIn(3, { sleepHours: 5 }), checkIn(3, { sleepHours: 8 }),
+    checkIn(3, { sleepHours: 5 }, { crew: 'other' })];
+  const sleep = hazards.evaluate({ ...current, history, sleepTarget: 7.5 }).find(item => item.id === 'sleepHours');
+  assert.equal(sleep.status, 'WARNING');
+  assert.doesNotMatch(sleep.detail, /two consecutive/);
+});
+
+test('cloud ranking preserves chest pain, urgent findings and all unranked observations', () => {
+  const { orderReviewObservations } = require('../js/detection');
+  const observations = ['chest pain', 'urgent pressure', 'urgent pulse', 'cabin warning', 'lab warning', 'missing oxygen'];
+  assert.deepEqual(orderReviewObservations(observations, [4, 3, 3, 2, 2, 0], [5, 4, 2]),
+    ['chest pain', 'urgent pulse', 'urgent pressure', 'lab warning', 'cabin warning', 'missing oxygen']);
+});
+
+test('the AI button falls back to isolated simulation from incomplete or private check-ins', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const app = fs.readFileSync(require.resolve('../js/app.js'), 'utf8');
+  const render = app.slice(app.indexOf('  function setGeminiScenario('), app.indexOf('  function postAIReview('));
+  for (const [mode, source] of [['simulator', 'simulated'], ['simulator', 'measured'], ['mission', 'measured']]) {
+    const elements = new Map();
+    const context = {
+      state: { mode, mission: { details: { phase: 'In orbit' } } }, source,
+      D: window.CC_DATA, S: window.CC_SCORING, Detection: window.CC_DETECTION, cloudAIUrl: 'enabled',
+      geminiPending: false, geminiScenario: null, programFallback: '',
+      $: id => {
+        if (!elements.has(id)) elements.set(id, {});
+        return elements.get(id);
+      }
+    };
+    vm.runInNewContext(render + '\nsetGeminiScenario({ source }, { severity: "UNKNOWN", findingCodes: [{ kind: "missing", metric: "spo2" }] });', context);
+    assert.equal(elements.get('#runGemini').disabled, mode === 'mission');
+    if (mode === 'simulator') {
+      const request = context.geminiScenario.request;
+      assert.equal(request.source, 'simulated');
+      assert.equal(request.findings[0].kind, 'no_alert');
+      assert.equal(request.phase, undefined);
+    } else {
+      assert.equal(context.geminiScenario.request, null);
+    }
+  }
+});

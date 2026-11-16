@@ -33,6 +33,7 @@ window.CC_STORAGE = (function () {
     ['launchSite', 'Launch site', 80],
     ['returnDate', 'Planned return date', 10],
     ['medicalChannel', 'Private medical channel reference', 100],
+    ['groundGateway', 'Mission-approved HTTPS ground gateway', 500],
     ['notes', 'Mission objectives and notes', 1000],
     ['food', 'Food and nutrition', 1200],
     ['water', 'Water and drinks', 1200],
@@ -48,12 +49,16 @@ window.CC_STORAGE = (function () {
     RESOURCE_FIELDS.forEach(function (field) {
       if (typeof input[field[0]] === 'string') out[field[0]] = input[field[0]].trim().slice(0, field[2]);
     });
+    if (input.groundGateway) out.groundGateway = window.CC_MISSION_INTERFACES?.gatewayUrl(out.groundGateway) || '';
     out.pulseOximeter = input.pulseOximeter === true;
     out.heartRateMonitor = input.heartRateMonitor === true;
     return out;
   }
 
   function cleanWearable(sample) {
+    if (sample?.provider === 'mission-equipment') {
+      return window.CC_MISSION_INTERFACES?.observation(sample) || null;
+    }
     if (!sample || !['heartRate', 'spo2'].includes(sample.metric) ||
         !['ble-hrs', 'apple-health', 'csv', 'json'].includes(sample.provider) ||
         !isNum(sample.value) || sample.value < 1 ||
@@ -142,9 +147,14 @@ window.CC_STORAGE = (function () {
     return e && typeof e === 'object' && typeof e.at === 'string' && e.values && typeof e.values === 'object';
   }
 
+  function followUpTimestamp(value) {
+    return typeof value === 'string' && Number.isFinite(Date.parse(value))
+      ? new Date(value).toISOString() : null;
+  }
+
   function normalizeEntry(e) {
     var wearable = {};
-    ['heartRate', 'spo2'].forEach(function (metric) {
+    Object.keys(e.wearable || {}).forEach(function (metric) {
       var sample = cleanWearable(e.wearable?.[metric]);
       if (sample && sample.metric === metric && sample.value === e.values[metric]) wearable[metric] = sample;
     });
@@ -155,6 +165,13 @@ window.CC_STORAGE = (function () {
       phase: e.phase === 'preflight' ? 'preflight' : 'flight',
       values: cleanValues(e.values),
       wearable: wearable,
+      followUp: {
+        acknowledgedAt: followUpTimestamp(e.followUp?.acknowledgedAt),
+        handoverAt: followUpTimestamp(e.followUp?.handoverAt),
+        gatewayReceipt: typeof e.followUp?.gatewayReceipt === 'string' &&
+          /^[A-Za-z0-9._-]{1,128}$/.test(e.followUp.gatewayReceipt) ? e.followUp.gatewayReceipt : null,
+        gatewayAt: followUpTimestamp(e.followUp?.gatewayAt)
+      },
       symptoms: Array.isArray(e.symptoms) ? e.symptoms.filter(function (s) { return typeof s === 'string'; }) : [],
       note: typeof e.note === 'string' ? e.note.slice(0, 400) : '',
       confirm: e.confirm && typeof e.confirm === 'object' ? e.confirm : {},
