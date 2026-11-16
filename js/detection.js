@@ -162,6 +162,9 @@
     // Only sustained absolute thresholds on two distinct signals can fuse to critical.
     if (persistent.has('spo2') && persistent.has('heartRate')) {
       critical = true;
+      for (const finding of findings) {
+        if (finding.kind === 'threshold') finding.severity = 'CRITICAL';
+      }
       reasons.push('Low oxygen and out-of-range resting heart rate both crossed safety thresholds on consecutive days.');
     }
 
@@ -279,10 +282,18 @@
     observations.sort((left, right) => right.urgency - left.urgency);
     const statements = observations.map(item => item.text);
     return { severity, situation: statements.join(' '), next, resource, observations: statements,
-      findingCodes: observations.map(item => item.code) };
+      findingCodes: observations.map(item => item.code), findingUrgencies: observations.map(item => item.urgency) };
   }
 
-  const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion };
+  function orderReviewObservations(observations, urgencies, priority) {
+    const ranked = new Set(priority);
+    const order = priority.concat(observations.map((_, index) => index).filter(index => !ranked.has(index)));
+    // Keep the program's urgency groups intact and use model ordering within each group.
+    return order.sort((left, right) => urgencies[right] - urgencies[left]).map(index => observations[index]);
+  }
+
+  const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion,
+    orderReviewObservations };
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else window.CC_DETECTION = engine;
 })();

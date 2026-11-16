@@ -273,3 +273,41 @@ test('ambiguous or foreign prior readings cannot establish consecutive low sleep
   assert.equal(sleep.status, 'WARNING');
   assert.doesNotMatch(sleep.detail, /two consecutive/);
 });
+
+test('cloud ranking preserves chest pain, urgent findings and all unranked observations', () => {
+  const { orderReviewObservations } = require('../js/detection');
+  const observations = ['chest pain', 'urgent pressure', 'urgent pulse', 'cabin warning', 'lab warning', 'missing oxygen'];
+  assert.deepEqual(orderReviewObservations(observations, [4, 3, 3, 2, 2, 0], [5, 4, 2]),
+    ['chest pain', 'urgent pulse', 'urgent pressure', 'lab warning', 'cabin warning', 'missing oxygen']);
+});
+
+test('the AI button falls back to isolated simulation from incomplete or private check-ins', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const app = fs.readFileSync(require.resolve('../js/app.js'), 'utf8');
+  const render = app.slice(app.indexOf('  function setGeminiScenario('), app.indexOf('  function postAIReview('));
+  for (const [mode, source] of [['simulator', 'simulated'], ['simulator', 'measured'], ['mission', 'measured']]) {
+    const elements = new Map();
+    const context = {
+      state: { mode, mission: { details: { phase: 'In orbit' } } }, source,
+      D: window.CC_DATA, S: window.CC_SCORING, Detection: window.CC_DETECTION, cloudAIUrl: 'enabled',
+      geminiPending: false, geminiScenario: null, programFallback: '',
+      $: id => {
+        if (!elements.has(id)) elements.set(id, {});
+        return elements.get(id);
+      }
+    };
+    vm.runInNewContext(render + '\nsetGeminiScenario({ source }, { severity: "UNKNOWN", findingCodes: [{ kind: "missing", metric: "spo2" }] });', context);
+    assert.equal(elements.get('#runGemini').disabled, mode === 'mission');
+    if (mode === 'simulator') {
+      const request = context.geminiScenario.request;
+      assert.equal(request.source, 'simulated');
+      assert.equal(request.findings[0].kind, 'no_alert');
+      assert.equal(request.phase, undefined);
+    } else {
+      assert.equal(context.geminiScenario.request, null);
+    }
+  }
+});
