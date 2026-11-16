@@ -535,6 +535,13 @@
               <option value="memory">Digit recall</option>
             </select>
           </label>
+          <label class="field">Input method for comparison
+            <select data-cognitive-method>
+              <option value="pointer">Mouse or trackpad</option>
+              <option value="touch">Touchscreen</option>
+              <option value="keyboard">Keyboard</option>
+            </select>
+          </label>
           <p class="muted" data-cognitive-hint></p>
           <button type="button" class="btn btn-primary" data-cognitive-start>Start test</button>
           <div class="cognitive-cue" role="status" aria-live="polite" data-cognitive-cue></div>
@@ -550,6 +557,8 @@
             <button type="submit" class="btn">Submit digits</button>
           </form>
           <p role="status" data-cognitive-summary></p>
+          <p role="status" data-cognitive-baseline></p>
+          <button type="button" class="btn" data-cognitive-save-baseline hidden>Save as a reference run</button>
           <button type="button" class="btn" data-cognitive-save hidden>Add score to check-in note</button>
           <p class="muted">Practice results vary by device and input method. Scores do not change the health alert.</p>
         </aside>
@@ -694,7 +703,7 @@
 <script src="js/scoring.js?v=2"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>
-<script src="js/follow-up.js"></script>
+<script src="js/follow-up.js?v=2"></script>
 <script src="js/storage.js?v=2"></script>
 <script src="data/sample-mission.js"></script>
 <script src="data/i4-replay.js"></script>
@@ -705,8 +714,8 @@
 <script src="data/astroguard-evidence.js"></script>
 <script src="js/astroguard-evidence.js"></script>
 <script src="js/self-check.js"></script>
-<script src="js/cognitive-check.js"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/cognitive-check.js?v=2"></script>
+<script src="js/app.js?v=11"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>

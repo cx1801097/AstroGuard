@@ -91,3 +91,16 @@ test('digit recall checks the presented sequence for each round', () => {
   }
   assert.equal(ui.node('summary').textContent, 'Digit recall: 2/3 correct, 1 incorrect.');
 });
+
+test('personal reference compares valid sessions without treating missing timing as zero', () => {
+  const { baselineComparison } = require('../js/cognitive-check');
+  const samples = [{ correct: 5, medianMs: 240 }, { correct: 4, medianMs: 260 },
+    { correct: 5, medianMs: 250 }, { correct: 5, medianMs: null }];
+  assert.match(baselineComparison('reaction', samples, { correct: 4, medianMs: 280 }),
+    /Reference response time: 250 ms. This run: 30 ms slower/);
+  assert.match(baselineComparison('reaction', samples, { correct: 2, medianMs: 230 }),
+    /At least three correct/);
+  assert.match(baselineComparison('reaction', samples.slice(0, 2), { correct: 5, medianMs: 230 }), /2\/3/);
+  assert.match(baselineComparison('memory', [{ correct: 1 }, { correct: 2 }, { correct: 3 }], { correct: 3 }),
+    /2\/3 correct/);
+});

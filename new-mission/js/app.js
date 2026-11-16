@@ -1003,13 +1003,10 @@
       var metric = D.METRIC_BY_ID[id];
       var check = entry.confirm[id];
       if (!metric || !check || typeof check !== 'object') return;
-      var first = fmt(metric, check.first) + ' ' + metric.unit;
       var original = Store.cleanWearable(check.originalWearable);
-      if (original) first += ' (' + original.provider + ', ' + original.timestamp + ')';
-      var outcome = check.resolved === 'unverified' ? 'No recheck recorded'
-        : fmt(metric, check.second) + ' ' + metric.unit +
-          (check.resolved === 'confirmed' ? ' (still flagged)' : ' (below escalation threshold on recheck)');
-      lines.push(metric.label + ': ' + first + ' → ' + outcome + ' · ' + check.at);
+      var line = window.CC_FOLLOW_UP.describeRecheck(check, metric.label, metric.unit);
+      if (original) line += ' · original device: ' + (original.deviceId || original.provider) + ', ' + original.timestamp;
+      lines.push(line);
     });
     if ((entry.pending || []).length) lines.push('Readings awaiting recheck: ' + entry.pending.length);
     if (followUp.gatewayReceipt) lines.push('Ground gateway receipt: ' + followUp.gatewayReceipt + ' · ' + followUp.gatewayAt);

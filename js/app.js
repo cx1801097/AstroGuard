@@ -516,9 +516,7 @@
     return Object.entries(state.confirm).flatMap(function ([id, record]) {
       var metric = D.METRIC_BY_ID[id];
       if (!metric || record.second === null) return [];
-      return [metric.label + ': ' + record.first + ' → ' + record.second + ' ' + metric.unit +
-        ' · ' + (record.resolved === 'confirmed' ? 'still flagged' : 'below the alert threshold on recheck') +
-        ' · ' + record.at];
+      return [window.CC_FOLLOW_UP.describeRecheck(record, metric.label, metric.unit)];
     });
   }
 
@@ -1113,6 +1111,24 @@
       updateSaveState();
       toast('Score added to the draft note. Save check-in to keep it.');
       return true;
+    }, {
+      key: function (test, method) {
+        return state.mission?.crew ? 'astroguard.cognitive.v1.' +
+          JSON.stringify([state.mode, state.scope, state.mission.crew, test, method]) : '';
+      },
+      load: function (key) {
+        try {
+          var saved = JSON.parse(window.localStorage.getItem(key));
+          return Array.isArray(saved) ? saved.filter(function (item) {
+            return Number.isInteger(item?.correct) && item.correct >= 0 && item.correct <= 6 &&
+              (item.medianMs === null || (Number.isFinite(item.medianMs) && item.medianMs > 0 && item.medianMs <= 2500));
+          }).slice(-5) : [];
+        } catch { return []; }
+      },
+      save: function (key, samples) {
+        try { window.localStorage.setItem(key, JSON.stringify(samples)); return true; }
+        catch { return false; }
+      }
     });
     $('#planRecheckForm').addEventListener('submit', recordPlanRecheck);
     $('#planRecheckMetric').addEventListener('change', function () { $('#planRecheckValue').value = ''; });

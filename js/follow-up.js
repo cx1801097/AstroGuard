@@ -28,7 +28,16 @@
     }));
   }
 
-  const api = { normalizeRecheck, normalizeRechecks };
+  function describeRecheck(record, label, unit) {
+    const first = record.first + ' ' + unit;
+    const repeat = record.second === null ? 'No repeat recorded' : record.second + ' ' + unit;
+    const outcome = record.resolved === 'unverified' ? 'unverified'
+      : record.resolved === 'confirmed' ? 'still flagged' : 'below the alert threshold on recheck';
+    const source = record.source === 'unknown' ? 'source unspecified' : record.source;
+    return label + ': ' + first + ' → ' + repeat + ' · ' + outcome + ' · ' + source + ' · ' + record.at;
+  }
+
+  const api = { normalizeRecheck, normalizeRechecks, describeRecheck };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.CC_FOLLOW_UP = api;
 }());
