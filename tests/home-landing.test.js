@@ -28,11 +28,11 @@ test('the landing page offers the same four entries as before', () => {
 });
 
 test('every landing entry points at a view the portal can show', () => {
-  const views = ['home', 'missionConsole', 'mission', 'wearable', 'simulator', 'replay', 'dashboard'];
+  const views = ['home', 'missionConsole', 'mission', 'wearable', 'simulator', 'replay', 'dashboard', 'missionDemo'];
   for (const match of html.matchAll(/data-open="([a-zA-Z]+)"/g)) {
     assert.ok(views.includes(match[1]), `unknown portal view: ${match[1]}`);
   }
-  assert.ok(portalJs.includes("'home', 'missionConsole', 'mission', 'wearable'"));
+  assert.ok(portalJs.includes("'home', 'missionConsole', 'mission', 'wearable', 'missionDemo'"));
 });
 
 test('the primary navigation reaches every section of the app', () => {

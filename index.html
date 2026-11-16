@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
 <title>ASTROGUARD — In-Flight Health Console</title>
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 <link rel="stylesheet" href="css/home.css">
 </head>
 <body class="is-landing">
@@ -66,6 +66,7 @@
       <h1 class="home-title">ASTROGUARD</h1>
       <span class="home-rule" aria-hidden="true"></span>
       <p class="home-lede">Review crew health, spot changes in vital signs, and prepare a check-in for ground review.</p>
+      <button type="button" class="btn btn-primary mission-demo-launch" data-open="missionDemo">Run a mission demo</button>
     </div>
 
     <div class="home-cards">
@@ -126,6 +127,32 @@
       </button>
     </div>
   </section>
+  <section id="missionDemoView" class="portal-view" hidden>
+    <div class="pane-head"><button type="button" class="btn" data-open="home">Home</button></div>
+    <div class="card">
+      <h1>Mission demo</h1>
+      <p>Simulated training case · Review a crew alert, log a repeat reading and preview the ground handover.</p>
+      <h2 data-demo-status tabindex="-1" role="status"></h2>
+      <ul data-demo-findings></ul>
+      <h3>What to do now</h3>
+      <p data-demo-next></p>
+      <p data-demo-compare></p>
+      <div class="portal-actions">
+        <button type="button" class="btn btn-primary" data-demo-recheck>Log simulated blood oxygen recheck (<span data-demo-repeat></span>)</button>
+        <button type="button" class="btn" data-demo-restart>Restart demo</button>
+      </div>
+      <details data-demo-handoff hidden>
+        <summary>Preview simulated ground handover</summary>
+        <pre class="mission-demo-report" data-demo-report></pre>
+      </details>
+    </div>
+    <div class="card">
+      <h2>Historical mission evidence</h2>
+      <p>Explore the published Inspiration4 evidence and see where individual readings are unavailable.</p>
+      <button type="button" class="btn" data-open="replay">Open I4 mission playback</button>
+    </div>
+  </section>
+
   <section id="missionConsoleView" class="portal-view" hidden>
     <nav class="portal-actions" aria-label="Mission console navigation">
       <button type="button" class="btn" data-open="home">Home</button>
@@ -719,7 +746,8 @@
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>
-<script src="js/portal.js"></script>
+<script src="js/mission-demo.js"></script>
+<script src="js/portal.js?v=2"></script>
 </body>
 </html>
 

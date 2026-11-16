@@ -857,3 +857,8 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 1050px) {
   .self-check-columns { grid-template-columns: minmax(0, 1fr); }
 }
+
+.mission-demo-launch { margin-top: 12px; }
+.mission-demo-report { white-space: pre-wrap; overflow-wrap: anywhere; }
+#missionDemoView .card + .card { margin-top: 14px; }
+#missionDemoView [hidden] { display: none; }
