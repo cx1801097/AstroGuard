@@ -363,3 +363,39 @@ test('cabin findings stay available locally while supported demo findings retain
   assert.equal(context.geminiScenario.request.findings[0].metric, 'spo2');
   assert.equal(context.geminiScenario.observations[0], 'Cabin pressure warning');
 });
+
+test('critical check-in highlights the actual warning even when the cloud path uses a separate demo', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const values = { glucose: 327, temperature: 39.3, heartRate: 139, spo2: 82 };
+  const input = { ...checkIn(70, values), activity: 'unknown', source: 'unknown' };
+  const detection = evaluate(input);
+  const dashboard = window.CC_SCORING.evaluate(values, input);
+  const suggestion = crewSuggestion(detection, {}, [], dashboard.alerts);
+  const { currentAlert } = require('../js/detection');
+  const alert = currentAlert(suggestion, dashboard.triage, input.source);
+  assert.equal(alert.tone, 'critical');
+  assert.match(alert.text, /CRITICAL · Current check-in · Reading source unconfirmed/);
+  assert.match(alert.text, /Blood oxygen is 82%/);
+  assert.equal(currentAlert({ severity: 'NORMAL' }, 'GO', 'simulated'), null);
+  assert.match(currentAlert({ severity: 'UNKNOWN' }, 'NO-GO', 'simulated').text, /^NO-GO · Current check-in/);
+
+  const app = fs.readFileSync(require.resolve('../js/app.js'), 'utf8');
+  const render = app.slice(app.indexOf('  function setGeminiScenario('), app.indexOf('  function postAIReview('));
+  const elements = new Map();
+  const context = {
+    state: { mode: 'simulator', mission: {} }, D: window.CC_DATA, S: window.CC_SCORING,
+    Detection: window.CC_DETECTION, cloudAIUrl: 'enabled', geminiPending: false, geminiScenario: null,
+    programFallback: '', detection, suggestion, $: id => {
+      if (!elements.has(id)) elements.set(id, {});
+      return elements.get(id);
+    }
+  };
+  vm.runInNewContext(render + '\nsetGeminiScenario(detection, suggestion);', context);
+  assert.match(elements.get('#geminiTitle').textContent, /Separate simulated example/);
+  assert.equal(elements.get('#geminiContext').hidden, false);
+  assert.equal(context.geminiScenario.request.severity, 'NORMAL');
+  assert.equal(suggestion.severity, 'CRITICAL');
+});

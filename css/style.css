@@ -862,3 +862,27 @@ input[type="range"]::-moz-range-thumb {
 .mission-demo-report { white-space: pre-wrap; overflow-wrap: anywhere; }
 #missionDemoView .card + .card { margin-top: 14px; }
 #missionDemoView [hidden] { display: none; }
+
+.current-check-alert {
+  order: 4;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding: 7px 11px;
+  border: 1px solid var(--caution);
+  border-radius: 8px;
+  background: rgba(33, 25, 11, .95);
+  font-size: 13px;
+  font-weight: 600;
+}
+.current-check-alert[hidden] { display: none; }
+.current-check-alert[data-tone="critical"] {
+  border-color: var(--nogo);
+  background: rgba(47, 16, 25, .95);
+}
+.current-check-alert p { margin: 0; flex: 1 1 230px; }
+.current-check-alert .btn { min-height: 32px; }
+.ai-example-context { border-inline-start: 2px solid var(--muted); padding-inline-start: 9px; }
