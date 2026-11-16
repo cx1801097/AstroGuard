@@ -174,7 +174,7 @@ window.CC_STORAGE = (function () {
       },
       symptoms: Array.isArray(e.symptoms) ? e.symptoms.filter(function (s) { return typeof s === 'string'; }) : [],
       note: typeof e.note === 'string' ? e.note.slice(0, 400) : '',
-      confirm: e.confirm && typeof e.confirm === 'object' ? e.confirm : {},
+      confirm: window.CC_FOLLOW_UP ? window.CC_FOLLOW_UP.normalizeRechecks(e.confirm) : e.confirm || {},
       pending: Array.isArray(e.pending) ? e.pending.filter(function (s) { return typeof s === 'string'; }) : [],
       savedAt: typeof e.savedAt === 'string' ? e.savedAt : e.at
     };

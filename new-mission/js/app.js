@@ -1003,13 +1003,10 @@
       var metric = D.METRIC_BY_ID[id];
       var check = entry.confirm[id];
       if (!metric || !check || typeof check !== 'object') return;
-      var first = fmt(metric, check.first) + ' ' + metric.unit;
       var original = Store.cleanWearable(check.originalWearable);
-      if (original) first += ' (' + original.provider + ', ' + original.timestamp + ')';
-      var outcome = check.resolved === 'unverified' ? 'No recheck recorded'
-        : fmt(metric, check.second) + ' ' + metric.unit +
-          (check.resolved === 'confirmed' ? ' (still flagged)' : ' (below escalation threshold on recheck)');
-      lines.push(metric.label + ': ' + first + ' → ' + outcome + ' · ' + check.at);
+      var line = window.CC_FOLLOW_UP.describeRecheck(check, metric.label, metric.unit);
+      if (original) line += ' · original device: ' + (original.deviceId || original.provider) + ', ' + original.timestamp;
+      lines.push(line);
     });
     if ((entry.pending || []).length) lines.push('Readings awaiting recheck: ' + entry.pending.length);
     if (followUp.gatewayReceipt) lines.push('Ground gateway receipt: ' + followUp.gatewayReceipt + ' · ' + followUp.gatewayAt);
@@ -2191,13 +2188,15 @@
       trial[id] = second;
       var r = evaluateValues(trial, entry);
       var level = r.results[id] ? r.results[id].level : 0;
-      confirm[id] = {
+      confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({
+        source: 'measured',
+        firstAt: entry.wearable?.[id]?.timestamp || entry.at,
         first: first,
         second: second,
         at: nowISO(),
         resolved: level >= 3 ? 'confirmed' : 'below_threshold',
         originalWearable: entry.wearable?.[id]
-      };
+      });
       values[id] = second;
       if (entry.wearable) delete entry.wearable[id];
     });
@@ -2223,7 +2222,9 @@
     if (!entry) return;
     var confirm = clone(entry.confirm || {});
     (entry.pending || []).forEach(function (id) {
-      confirm[id] = { first: entry.values[id], second: null, at: nowISO(), resolved: 'unverified' };
+      confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({ first: entry.values[id],
+        at: nowISO(), firstAt: entry.wearable?.[id]?.timestamp || entry.at,
+        resolved: 'unverified', source: 'measured', originalWearable: entry.wearable?.[id] });
     });
     entry.confirm = confirm;
     entry.pending = [];

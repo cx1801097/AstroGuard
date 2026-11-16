@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
 <title>ASTROGUARD — In-Flight Health Console</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=3">
 <link rel="stylesheet" href="css/home.css">
 </head>
 <body class="is-landing">
@@ -363,6 +363,7 @@
       <nav class="tabs" role="tablist" aria-label="Console views">
         <button class="tab is-active" data-tab="body" role="tab" aria-selected="true">Body map</button>
         <button class="tab" data-tab="trends" role="tab" aria-selected="false">Trends</button>
+        <button class="tab" id="selfCheckTab" data-tab="self-check" role="tab" aria-selected="false">Self-check tests</button>
         <button class="tab" data-tab="plan" role="tab" aria-selected="false">Action plan</button>
         <button class="tab" data-tab="log" role="tab" aria-selected="false">Mission log</button>
         <button class="tab" id="nasaLiveTab" data-tab="environment" role="tab" aria-selected="false" hidden>Environment</button>
@@ -496,6 +497,74 @@
       </div>
 
       <!-- ACTION PLAN -->
+      <div class="pane" data-pane="self-check">
+        <div class="self-check-columns">
+        <div>
+        <section class="card">
+          <h3>Crew self-check</h3>
+          <p>Use readings you actually measured. Skip tests you cannot do. Follow your mission emergency procedure for urgent symptoms.</p>
+          <form id="selfCheckForm">
+            <label class="field">Activity during vital readings
+              <select name="activity">
+                <option value="unknown">Unspecified</option>
+                <option value="rest">At rest</option>
+                <option value="exercise">During or just after exercise</option>
+              </select>
+            </label>
+            <div id="selfCheckTests" class="self-check-grid"></div>
+            <button type="submit" class="btn btn-primary">Review self-check</button>
+            <p id="selfCheckError" role="status"></p>
+          </form>
+        </section>
+        <section id="selfCheckResult" class="card self-check-result" hidden>
+          <h3 id="selfCheckSeverity" role="status"></h3>
+          <details><summary>Readings used</summary><ul id="selfCheckReadings"></ul></details>
+          <ul id="selfCheckObservations"></ul>
+          <p id="selfCheckNext"></p>
+          <p id="selfCheckResources"></p>
+          <button type="button" id="selfCheckUse" class="btn btn-quiet">Use in daily check-in</button>
+          <p class="muted">The local assessment uses your entered readings. Cloud AI reviews simulated examples only.</p>
+        </section>
+        </div>
+        <aside class="card cognitive-check" id="cognitiveCheck" aria-labelledby="cognitiveCheckTitle">
+          <h3 id="cognitiveCheckTitle">Reaction &amp; memory tests</h3>
+          <label class="field">Choose a test
+            <select data-cognitive-test>
+              <option value="reaction">Reaction time</option>
+              <option value="choice">Choice reaction</option>
+              <option value="memory">Digit recall</option>
+            </select>
+          </label>
+          <label class="field">Input method for comparison
+            <select data-cognitive-method>
+              <option value="pointer">Mouse or trackpad</option>
+              <option value="touch">Touchscreen</option>
+              <option value="keyboard">Keyboard</option>
+            </select>
+          </label>
+          <p class="muted" data-cognitive-hint></p>
+          <button type="button" class="btn btn-primary" data-cognitive-start>Start test</button>
+          <div class="cognitive-cue" role="status" aria-live="polite" data-cognitive-cue></div>
+          <div class="cognitive-actions">
+            <button type="button" class="btn" data-cognitive-respond hidden>Respond</button>
+            <button type="button" class="btn" data-cognitive-left hidden>Left</button>
+            <button type="button" class="btn" data-cognitive-right hidden>Right</button>
+          </div>
+          <form data-cognitive-recall hidden>
+            <label class="field">Digits in order
+              <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-9]{1,5}" required data-cognitive-digits>
+            </label>
+            <button type="submit" class="btn">Submit digits</button>
+          </form>
+          <p role="status" data-cognitive-summary></p>
+          <p role="status" data-cognitive-baseline></p>
+          <button type="button" class="btn" data-cognitive-save-baseline hidden>Save as a reference run</button>
+          <button type="button" class="btn" data-cognitive-save hidden>Add score to check-in note</button>
+          <p class="muted">Practice results vary by device and input method. Scores do not change the health alert.</p>
+        </aside>
+        </div>
+      </div>
+
       <div class="pane" data-pane="plan">
         <div class="plan-columns">
           <aside id="crewSuggestion" class="card crew-suggestion" aria-labelledby="crewSuggestionTitle">
@@ -541,6 +610,16 @@
             <section id="hazardReview" class="card alert-card" hidden aria-labelledby="hazardReviewTitle">
               <h4 id="hazardReviewTitle">Spaceflight hazard detection</h4>
               <div id="hazardResults"></div>
+            </section>
+            <section id="planRecheck" class="card" hidden>
+              <h4>Recheck a flagged reading</h4>
+              <p class="muted">Follow urgent mission procedures immediately when indicated. Record a repeat reading when appropriate.</p>
+              <form id="planRecheckForm">
+                <label class="field">Reading to recheck <select id="planRecheckMetric"></select></label>
+                <label class="field">Repeat reading <input type="number" step="any" id="planRecheckValue" required></label>
+                <button type="submit" class="btn">Record recheck</button>
+              </form>
+              <ul id="planRecheckHistory"></ul>
             </section>
             <details id="groundReview" class="card alert-card" hidden>
               <summary>Review ground handoff</summary>
@@ -619,12 +698,13 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
-<script src="js/detection.js?v=3"></script>
+<script src="js/detection.js?v=4"></script>
 <script src="js/hazard-monitor.js?v=3"></script>
 <script src="js/scoring.js?v=2"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>
-<script src="js/storage.js"></script>
+<script src="js/follow-up.js?v=2"></script>
+<script src="js/storage.js?v=2"></script>
 <script src="data/sample-mission.js"></script>
 <script src="data/i4-replay.js"></script>
 <script src="data/cloud-ai-config.js?v=1"></script>
@@ -633,7 +713,9 @@
 <script src="js/local-ai.js"></script>
 <script src="data/astroguard-evidence.js"></script>
 <script src="js/astroguard-evidence.js"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/self-check.js"></script>
+<script src="js/cognitive-check.js?v=2"></script>
+<script src="js/app.js?v=11"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>

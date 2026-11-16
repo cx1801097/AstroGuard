@@ -83,3 +83,45 @@ test('ground interface requires HTTPS and accepts only a matching gateway receip
     ok: true, json: async () => ({ packetId: 'different', receiptId: 'test-receipt' })
   })), /no matching receipt/);
 });
+
+test('both consoles retain the shared recheck format and migrate older outcomes', () => {
+  const shared = require('../js/follow-up');
+  const original = { first: 160, second: 80, at, resolved: 'artefact' };
+  const rootContext = vm.createContext({
+    window: { CC_FOLLOW_UP: shared, CC_DETECTION: require('../js/detection') }
+  });
+  const missionContext = vm.createContext({ window: { CC_FOLLOW_UP: shared } });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/storage.js'), 'utf8'), rootContext);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../new-mission/js/storage.js'), 'utf8'), missionContext);
+  const root = rootContext.window.CC_STORAGE;
+  const mission = missionContext.window.CC_STORAGE;
+  const confirm = { heartRate: original, spo2: { ...original, first: 'broken' } };
+  const rootRecord = root.fromJSON(JSON.stringify({ entries: [{ day: 1, values: { heartRate: 80 }, confirm }] }));
+  const missionRecord = mission.fromJSON(JSON.stringify({ crewId: 'TEST', entries: [{ at, values: { heartRate: 80 }, confirm }] }));
+  assert.deepEqual(rootRecord.entries[0].confirm, missionRecord.entries[0].confirm);
+  assert.equal(rootRecord.entries[0].confirm.heartRate.resolved, 'below_threshold');
+  assert.equal(rootRecord.entries[0].confirm.heartRate.firstAt, null);
+  assert.equal(Object.hasOwn(rootRecord.entries[0].confirm, 'spo2'), false);
+});
+
+test('the dashboard and New Mission flag severe pressure, then agree on the repeat reading', () => {
+  const root = { CC_DETECTION: require('../js/detection') };
+  const mission = {};
+  for (const [directory, window] of [['../js', root], ['../new-mission/js', mission]]) {
+    for (const file of ['data.js', 'scoring.js']) {
+      vm.runInNewContext(fs.readFileSync(path.join(__dirname, directory, file), 'utf8'), { window });
+    }
+  }
+  const emergency = { systolic: 205, diastolic: 132, heartRate: 70, spo2: 98 };
+  const repeat = { ...emergency, systolic: 118, diastolic: 74 };
+  const compare = (values, expected) => {
+    const dashboard = root.CC_SCORING.evaluate(values, { activity: 'rest' });
+    const crewConsole = mission.CC_SCORING.evaluate(values, {});
+    assert.equal(dashboard.results.systolic.level >= 3, expected);
+    assert.equal(dashboard.results.diastolic.level >= 3, expected);
+    assert.equal(crewConsole.escalations.includes('systolic'), expected);
+    assert.equal(crewConsole.escalations.includes('diastolic'), expected);
+  };
+  compare(emergency, true);
+  compare(repeat, false);
+});

@@ -311,3 +311,32 @@ test('the AI button falls back to isolated simulation from incomplete or private
     }
   }
 });
+
+test('guided self-check feeds real entries only and escalates a symptom-only chest pain report', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const { read } = require('../js/self-check');
+  const form = new FormData();
+  form.set('heartRate', '88');
+  form.set('activity', 'exercise');
+  form.set('spo2', '');
+  form.set('systolic', '  ');
+  form.set('radiationDose', '500');
+  assert.deepEqual(read(form, window.CC_DATA), { values: { heartRate: 88 }, symptoms: [], activity: 'exercise' });
+  form.set('spo2', '150');
+  assert.throws(() => read(form, window.CC_DATA), /supported input range/);
+  assert.throws(() => read(new FormData(), window.CC_DATA), /at least one/);
+
+  const symptomForm = new FormData();
+  symptomForm.append('symptoms', 'chestPain');
+  symptomForm.append('symptoms', 'unrecognized');
+  const symptomInput = read(symptomForm, window.CC_DATA);
+  assert.deepEqual(symptomInput.values, {});
+  assert.deepEqual(symptomInput.symptoms, ['chestPain']);
+  const detection = evaluate(checkIn(9, symptomInput.values, { source: 'measured', activity: symptomInput.activity }));
+  const suggestion = crewSuggestion(detection, {}, symptomInput.symptoms);
+  assert.equal(suggestion.severity, 'CRITICAL');
+  assert.match(suggestion.next, /contact the flight surgeon now/);
+});

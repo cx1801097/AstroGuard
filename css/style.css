@@ -817,3 +817,43 @@ input[type="range"]::-moz-range-thumb {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+.self-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr));
+  gap: 14px;
+  margin-block: 12px;
+}
+.self-check-grid fieldset {
+  border: 1px solid #263c52;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+}
+.self-check-grid legend { padding-inline: 4px; font-weight: 600; }
+.self-check-grid .field { margin-block: 10px; }
+.self-check-symptom { display: block; margin-block: 7px; }
+.self-check-result { margin-top: 14px; }
+
+.self-check-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(245px, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+.cognitive-check .field { margin-block: 12px; }
+.cognitive-check [hidden] { display: none; }
+.cognitive-cue:not(:empty) {
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  margin-block: 12px;
+  padding: 16px 10px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+}
+.cognitive-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1050px) {
+  .self-check-columns { grid-template-columns: minmax(0, 1fr); }
+}
