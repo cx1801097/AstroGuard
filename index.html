@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
 <title>ASTROGUARD — In-Flight Health Console</title>
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 <link rel="stylesheet" href="css/home.css">
 </head>
 <body class="is-landing">
@@ -498,6 +498,8 @@
 
       <!-- ACTION PLAN -->
       <div class="pane" data-pane="self-check">
+        <div class="self-check-columns">
+        <div>
         <section class="card">
           <h3>Crew self-check</h3>
           <p>Use readings you actually measured. Skip tests you cannot do. Follow your mission emergency procedure for urgent symptoms.</p>
@@ -523,6 +525,35 @@
           <button type="button" id="selfCheckUse" class="btn btn-quiet">Use in daily check-in</button>
           <p class="muted">The local assessment uses your entered readings. Cloud AI reviews simulated examples only.</p>
         </section>
+        </div>
+        <aside class="card cognitive-check" id="cognitiveCheck" aria-labelledby="cognitiveCheckTitle">
+          <h3 id="cognitiveCheckTitle">Reaction &amp; memory tests</h3>
+          <label class="field">Choose a test
+            <select data-cognitive-test>
+              <option value="reaction">Reaction time</option>
+              <option value="choice">Choice reaction</option>
+              <option value="memory">Digit recall</option>
+            </select>
+          </label>
+          <p class="muted" data-cognitive-hint></p>
+          <button type="button" class="btn btn-primary" data-cognitive-start>Start test</button>
+          <div class="cognitive-cue" role="status" aria-live="polite" data-cognitive-cue></div>
+          <div class="cognitive-actions">
+            <button type="button" class="btn" data-cognitive-respond hidden>Respond</button>
+            <button type="button" class="btn" data-cognitive-left hidden>Left</button>
+            <button type="button" class="btn" data-cognitive-right hidden>Right</button>
+          </div>
+          <form data-cognitive-recall hidden>
+            <label class="field">Digits in order
+              <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-9]{1,5}" required data-cognitive-digits>
+            </label>
+            <button type="submit" class="btn">Submit digits</button>
+          </form>
+          <p role="status" data-cognitive-summary></p>
+          <button type="button" class="btn" data-cognitive-save hidden>Add score to check-in note</button>
+          <p class="muted">Practice results vary by device and input method. Scores do not change the health alert.</p>
+        </aside>
+        </div>
       </div>
 
       <div class="pane" data-pane="plan">
@@ -663,7 +694,8 @@
 <script src="data/astroguard-evidence.js"></script>
 <script src="js/astroguard-evidence.js"></script>
 <script src="js/self-check.js"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/cognitive-check.js"></script>
+<script src="js/app.js?v=9"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>

@@ -1020,14 +1020,35 @@
     });
   }
 
+  var resetCognitiveCheck;
+
   function bindEvents() {
     bindSelfCheck();
+    resetCognitiveCheck = window.CC_COGNITIVE_CHECK.mount($('#cognitiveCheck'), function () {
+      return JSON.stringify([state.scope, state.mission?.crew, state.mission?.flightDay, state.source]);
+    }, function (summary) {
+      if (state.source !== 'measured') {
+        toast('Add this score to a measured check-in. Use Crew self-check to start one.');
+        return false;
+      }
+      var note = [state.note.trim(), summary].filter(Boolean).join(' ');
+      if (note.length > $('#noteInput').maxLength) {
+        toast('Shorten the check-in note before adding this score.');
+        return false;
+      }
+      state.note = note;
+      $('#noteInput').value = note;
+      updateSaveState();
+      toast('Score added to the draft note. Save check-in to keep it.');
+      return true;
+    });
     $('#runGemini').addEventListener('click', runGemini);
     $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */
     $$('[data-tab]').forEach(function (tab) {
       tab.addEventListener('click', function () {
         state.tab = tab.getAttribute('data-tab');
+        if (state.tab !== 'self-check') resetCognitiveCheck?.();
         $$('[data-tab]').forEach(function (t) {
           var on = t === tab;
           t.classList.toggle('is-active', on);
@@ -1153,6 +1174,7 @@
     state.mode = mode;
     $('#selfCheckTab').hidden = mode === 'replay';
     $('#selfCheckForm').reset();
+    resetCognitiveCheck?.();
     if (mode === 'replay' && state.tab === 'self-check') $('[data-tab="body"]').click();
     state.scope = scope;
     state.mission = mission;

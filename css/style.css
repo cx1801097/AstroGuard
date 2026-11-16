@@ -834,3 +834,26 @@ input[type="range"]::-moz-range-thumb {
 .self-check-grid .field { margin-block: 10px; }
 .self-check-symptom { display: block; margin-block: 7px; }
 .self-check-result { margin-top: 14px; }
+
+.self-check-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(245px, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+.cognitive-check .field { margin-block: 12px; }
+.cognitive-check [hidden] { display: none; }
+.cognitive-cue:not(:empty) {
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  margin-block: 12px;
+  padding: 16px 10px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+}
+.cognitive-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1050px) {
+  .self-check-columns { grid-template-columns: minmax(0, 1fr); }
+}
