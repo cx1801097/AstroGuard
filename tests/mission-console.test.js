@@ -53,3 +53,33 @@ test('follow-up timestamps and the original wearable reading survive export and 
   mission.entries[0].followUp = { acknowledgedAt: 'invalid' };
   assert.equal(storage.fromJSON(storage.toJSON(mission)).entries[0].followUp.acknowledgedAt, null);
 });
+
+test('equipment interface validates timestamp, quality, units and cabin averaging window', () => {
+  const observation = require('../new-mission/js/mission-interfaces').observation;
+  const input = { metric: 'cabinCo2Avg', value: 3.5, unit: 'mmHg', quality: 'usable',
+    timestamp: at, deviceId: 'cabin-01', averagingSeconds: 3600 };
+  assert.equal(observation(input).provider, 'mission-equipment');
+  assert.equal(observation({ ...input, quality: 'invalid' }), null);
+  assert.equal(observation({ ...input, averagingSeconds: 60 }), null);
+  assert.equal(observation({ ...input, unit: 'ppm' }), null);
+  assert.equal(observation({ ...input, metric: 'constructor' }), null);
+});
+
+test('ground interface requires HTTPS and accepts only a matching gateway receipt', async () => {
+  const { send, gatewayUrl } = require('../new-mission/js/mission-interfaces');
+  assert.equal(gatewayUrl('http://ground.example/reports'), '');
+  assert.equal(gatewayUrl('https://crew:secret@ground.example/reports'), '');
+  const packet = { schema: 'astroguard.handover.v1', packetId: 'test-only' };
+  const url = 'https://ground.example/reports';
+  const receipt = await send(url, packet, async (destination, options) => {
+    assert.equal(destination, url);
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert.deepEqual(JSON.parse(options.body), packet);
+    return { ok: true, json: async () => ({ packetId: packet.packetId, receiptId: 'test-receipt' }) };
+  });
+  assert.equal(receipt, 'test-receipt');
+  await assert.rejects(send(url, packet, async () => ({
+    ok: true, json: async () => ({ packetId: 'different', receiptId: 'test-receipt' })
+  })), /no matching receipt/);
+});

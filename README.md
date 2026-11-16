@@ -121,3 +121,45 @@ on upstream commit `2068e56` — see `new-mission/UPSTREAM.md` and
 ## License
 
 Mozilla Public License 2.0, inherited from the upstream project.
+
+## New Mission ground and equipment interfaces
+
+In **Mission → Spacecraft and onboard resources**, set the mission-approved
+HTTPS ground gateway. In a saved assessment, review **Handover report** and
+choose **Send reviewed report to ground**. The browser asks for confirmation
+with the destination. The JSON payload includes the reviewed report (including
+any crew note), callsign, mission, triage, check-in timestamp and flight day.
+A matching gateway receipt is recorded on the check. The receipt acknowledges
+gateway acceptance. Ground operator acknowledgement is a separate process.
+
+The endpoint accepts a JSON POST with schema `astroguard.handover.v1` and
+returns JSON such as `{"packetId":"e123","receiptId":"ground-456"}`.
+Configure CORS for the app's HTTPS origin and Content-Type. Use a
+mission-managed access boundary and deduplicate by packetId. The browser sends
+without credentials, follows no redirects and performs no automatic retries.
+Use the existing Copy or Download report options when the gateway is offline
+or when your mission uses a different transport.
+
+Equipment bridges can export a JSON file for **Import one mission equipment
+reading**. The console validates it and fills one enabled check-in field.
+Review and select **Run check** to store the reading and device provenance.
+
+```json
+{
+  "schema": "astroguard.observation.v1",
+  "reading": {
+    "metric": "cabinCo2Avg",
+    "value": 2.1,
+    "unit": "mmHg",
+    "quality": "usable",
+    "timestamp": "2026-11-15T12:00:00Z",
+    "deviceId": "cabin-monitor-01",
+    "averagingSeconds": 3600
+  }
+}
+```
+
+Supported metric IDs and units are listed in
+`new-mission/js/mission-interfaces.js`. Equipment bridges must map their
+vendor format into this contract. Physical device and mission-network
+qualification require tests with the equipment and gateway used on the mission.

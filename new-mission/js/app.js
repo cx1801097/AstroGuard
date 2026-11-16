@@ -224,18 +224,20 @@
     return entry ? evaluateValues(entry.values, entry) : null;
   }
 
-  function renderHazardCheck(container, entry) {
-    var monitor = window.CC_HAZARDS;
-    if (!monitor || !container) return;
+  function hazardInput(entry) {
     var crew = state.record.crewId;
     var candidate = entry || { values: state.draft, day: nextFlightDay(state.preflight ? 'preflight' : 'flight', nowISO()) };
-    monitor.render(container, {
+    return {
       values: candidate.values, source: 'measured', day: state.record.missionStart ? candidate.day : null, crew: crew,
       sleepTarget: candidate.values.sleepTargetAtCheck ?? profile().sleepTargetHours,
       history: entries().filter(function (previous) { return previous.phase === 'flight'; }).map(function (previous) {
         return { day: previous.day, crew: crew, source: 'measured', values: previous.values };
       })
-    });
+    };
+  }
+
+  function renderHazardCheck(container, entry) {
+    if (container) window.CC_HAZARDS?.render(container, hazardInput(entry));
   }
 
   function dayLabel(entry) {
@@ -609,7 +611,7 @@
         '<li><span>2</span><div><strong>Run a check.</strong> Vitals, sleep, mood, symptoms. Every reading you enter is compared to your own baseline as well as to clinical limits.</div></li>' +
         '<li><span>3</span><div><strong>Act, then hand over.</strong> You get a verdict and specific actions, and a structured report you can read to the ground.</div></li>' +
       '</ol>' +
-      '<p class="muted small">The form is in the left panel. Nothing is uploaded and no network is required.</p>' +
+      '<p class="muted small">The form is in the left panel. Check-ins work offline.</p>' +
       '</div>';
   }
 
@@ -633,8 +635,8 @@
       badges.push('<span class="badge badge-confirmed">FOLLOW-UP RECORDED</span>');
     }
     var wearableSources = Object.values(entry.wearable || {}).map(function (sample) {
-      var label = D.METRIC_BY_ID[sample.metric].label;
-      return '<li>' + esc(label + ': ' + sample.value + ' ' + sample.unit + ' · ' + sample.provider + ' · ' + sample.timestamp) + '</li>';
+      var label = D.METRIC_BY_ID[sample.metric]?.label || 'Cabin CO₂, one-hour average';
+      return '<li>' + esc(label + ': ' + sample.value + ' ' + sample.unit + ' · ' + (sample.deviceId || sample.provider) + ' · ' + sample.timestamp) + '</li>';
     }).join('');
 
     return '<article class="check-card">' +
@@ -645,7 +647,7 @@
       '</div>' +
       verdictHero(result) +
       driversCard(result) +
-      (wearableSources ? '<section class="card"><h4>Wearable readings used</h4><ul class="wearable-sources">' +
+      (wearableSources ? '<section class="card"><h4>Device readings used</h4><ul class="wearable-sources">' +
         wearableSources + '</ul></section>' : '') +
       (pending.length ? confirmCard(entry, result) : '') +
       actionsCard(result) +
@@ -902,6 +904,15 @@
         '. No measurement available in this check.', 72, '   '));
     }
 
+    var checkedHazards = window.CC_HAZARDS?.evaluate(hazardInput(entry)) || [];
+    var hazardAlerts = checkedHazards.filter(function (item) { return item.status === 'WARNING'; });
+    if (hazardAlerts.length) {
+      push('');
+      push('   Spaceflight hazard warnings:');
+      hazardAlerts.forEach(function (item) {
+        push(wrap('- ' + item.title + ': ' + item.detail, 72, '     '));
+      });
+    }
     var followUp = followUpLines(entry);
     if (followUp.length) {
       push('');
@@ -1001,6 +1012,7 @@
       lines.push(metric.label + ': ' + first + ' → ' + outcome + ' · ' + check.at);
     });
     if ((entry.pending || []).length) lines.push('Readings awaiting recheck: ' + entry.pending.length);
+    if (followUp.gatewayReceipt) lines.push('Ground gateway receipt: ' + followUp.gatewayReceipt + ' · ' + followUp.gatewayAt);
     if (followUp.handoverAt) lines.push('Crew reported sharing via the mission channel: ' + followUp.handoverAt);
     return lines;
   }
@@ -1031,6 +1043,43 @@
     toast('Follow-up saved.');
   }
 
+  var groundSendPending = false;
+
+  function groundPacket(entry, result) {
+    return {
+      schema: 'astroguard.handover.v1',
+      packetId: entry.id,
+      checkInAt: entry.at,
+      flightDay: entry.day,
+      mission: state.record.mission,
+      crewCallsign: state.record.crewId,
+      triage: result.triage,
+      report: buildHandover(entry, result)
+    };
+  }
+
+  async function sendGroundReport() {
+    var entry = selectedEntry();
+    var destination = profile().resources.groundGateway;
+    if (!entry || !destination || entry.followUp?.gatewayReceipt || groundSendPending) return;
+    var record = state.record;
+    var packet = groundPacket(entry, evaluateEntry(entry));
+    if (!window.confirm('Send this check-in’s reviewed health report and crew callsign to ' + destination + '?')) return;
+    groundSendPending = true;
+    renderAssessment();
+    try {
+      var receipt = await window.CC_MISSION_INTERFACES.send(destination, packet);
+      entry.followUp = Object.assign({}, entry.followUp, { gatewayReceipt: receipt, gatewayAt: nowISO() });
+      var saved = state.record === record && record.entries.includes(entry) && persist();
+      toast(saved ? 'Ground gateway acknowledged the packet.' : 'Gateway acknowledged the packet. The receipt could not be saved.');
+    } catch {
+      toast('Delivery could not be confirmed. Check the mission channel before trying again.');
+    } finally {
+      groundSendPending = false;
+      renderAll();
+    }
+  }
+
   function handoverCard(entry, result) {
     var text = buildHandover(entry, result);
     return '<section class="card handover-card">' +
@@ -1047,8 +1096,18 @@
       '<details class="report-wrap">' +
         '<summary>Show report text</summary>' +
         '<pre class="report" data-role="report">' + esc(text) + '</pre>' +
-      '</details>' +
+      '</details>' + groundControls(entry) +
     '</section>';
+  }
+
+  function groundControls(entry) {
+    var gateway = profile().resources.groundGateway;
+    if (!gateway) return '<p class="muted small">Set a mission-approved ground gateway in Mission settings to send this report.</p>';
+    return '<p class="muted small">Ground gateway: ' + esc(gateway) +
+      '. Review the report above before sending. It includes the crew callsign.</p>' +
+      (entry.followUp?.gatewayReceipt ? '<p>Gateway receipt: ' + esc(entry.followUp.gatewayReceipt) + '</p>' :
+        '<button type="button" class="btn btn-quiet btn-sm" data-act="send-ground"' +
+        (groundSendPending ? ' disabled' : '') + '>Send reviewed report to ground</button>');
   }
 
   /* ============================================================
@@ -2366,6 +2425,26 @@
       state.wearableDraft[sample.metric] = sample;
       toast('Wearable reading added with its original timestamp. Run check to save it.');
     });
+    $('#equipmentReadingFile').addEventListener('change', async function (event) {
+      var input = event.currentTarget;
+      var file = input.files[0];
+      input.value = '';
+      if (!file || !hasRecord()) return;
+      try {
+        if (file.size > 4096) throw new Error('file size');
+        var envelope = JSON.parse(await file.text());
+        if (envelope?.schema !== 'astroguard.observation.v1') throw new Error('schema');
+        var sample = window.CC_MISSION_INTERFACES.observation(envelope.reading);
+        if (!sample) throw new Error('reading');
+        var field = $('#f-' + sample.metric) || $('#missionHazardInputs [data-hazard-input="' + sample.metric + '"]');
+        if (!field || sample.value < Number(field.min) || sample.value > Number(field.max)) throw new Error('range');
+        setDraftValue(sample.metric, String(sample.value));
+        state.wearableDraft[sample.metric] = sample;
+        toast('Equipment reading loaded. Review it and run the check to save it.');
+      } catch {
+        toast('Equipment reading rejected. Check the format, sensor quality, units and enabled instruments.');
+      }
+    });
     $('#setupForm').addEventListener('submit', saveSetup);
     $('#checkForm').addEventListener('submit', runCheck);
 
@@ -2431,6 +2510,7 @@
       else if (act === 'accept-unverified') acceptUnverified();
       else if (act === 'acknowledge-check') recordFollowUp('acknowledgedAt');
       else if (act === 'record-handover') recordFollowUp('handoverAt');
+      else if (act === 'send-ground') sendGroundReport();
       else if (act === 'open-assistant') selectTab('assistant');
       else if (act === 'copy-report') copyReport();
       else if (act === 'download-report') downloadReport();
@@ -2553,6 +2633,7 @@
     buildSetupProfile();
     buildForm();
     window.CC_HAZARDS?.bind($('#missionHazardInputs'), false, function (id, value) {
+      delete state.wearableDraft[id];
       setDraftValue(id, value === null ? '' : String(value));
     });
     bindEvents();
