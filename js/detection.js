@@ -292,6 +292,26 @@
       findingCodes: observations.map(item => item.code), findingUrgencies: observations.map(item => item.urgency) };
   }
 
+  function currentAlert(suggestion, triage, source) {
+    let title;
+    let tone;
+    if (suggestion.severity === 'CRITICAL') {
+      title = 'CRITICAL · Current check-in';
+      tone = 'critical';
+    } else if (triage === 'NO-GO') {
+      title = 'NO-GO · Current check-in';
+      tone = 'critical';
+    } else if (suggestion.severity === 'WARNING' || triage === 'CAUTION') {
+      title = 'CAUTION · Current check-in';
+      tone = 'warning';
+    } else return null;
+    const provenance = source === 'simulated' ? 'Simulated readings' :
+      source === 'measured' ? 'Measured readings' : 'Reading source unconfirmed';
+    const lead = suggestion.severity === 'CRITICAL' || suggestion.severity === 'WARNING'
+      ? suggestion.observations[0] : '';
+    return { tone, text: title + ' · ' + provenance + (lead ? ' · ' + lead : '') };
+  }
+
   function orderReviewObservations(observations, urgencies, priority) {
     const ranked = new Set(priority);
     const order = priority.concat(observations.map((_, index) => index).filter(index => !ranked.has(index)));
@@ -300,7 +320,7 @@
   }
 
   const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion,
-    orderReviewObservations, readinessReading };
+    orderReviewObservations, readinessReading, currentAlert };
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else window.CC_DETECTION = engine;
 })();

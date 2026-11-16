@@ -76,5 +76,34 @@ test('unsupported Bluetooth and chooser cancellation never report connected', as
   await createHeartRateAdapter({
     async requestDevice() { throw new DOMException('Cancelled', 'NotFoundError'); }
   }, callbacks).pair();
-  assert.deepEqual(states, ['unsupported', 'connecting', 'not-selected']);
+  assert.deepEqual(states, ['unsupported', 'choosing', 'not-selected']);
+});
+
+test('expanded discovery requests heart-rate access and explains an incompatible selected device', async () => {
+  const device = new EventTarget();
+  const states = [];
+  device.gatt = {
+    connected: false,
+    async connect() { this.connected = true; return this; },
+    async getPrimaryService() { throw new DOMException('Missing service', 'NotFoundError'); },
+    disconnect() { this.connected = false; }
+  };
+  const adapter = createHeartRateAdapter({
+    async requestDevice(options) {
+      assert.deepEqual(options, { acceptAllDevices: true, optionalServices: ['heart_rate'] });
+      return device;
+    }
+  }, { onStatus: ({ state }) => states.push(state), onSample() {} });
+  await adapter.browse();
+  assert.deepEqual(states, ['choosing', 'connecting', 'no-heart-rate']);
+  assert.equal(device.gatt.connected, false);
+});
+
+test('blocked Bluetooth permission is reported separately from an absent device', async () => {
+  const states = [];
+  const adapter = createHeartRateAdapter({
+    async requestDevice() { throw new DOMException('Blocked', 'NotAllowedError'); }
+  }, { onStatus: ({ state }) => states.push(state), onSample() {} });
+  await adapter.pair();
+  assert.deepEqual(states, ['choosing', 'permission-blocked']);
 });

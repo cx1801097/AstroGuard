@@ -434,6 +434,7 @@
     var hazardInput = { ...detectionInput(), sleepTarget: 7.5, history: state.mission.entries };
     var hazardFindings = Hazards?.evaluate(hazardInput) || [];
     var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms, r.alerts, hazardFindings);
+    renderCurrentCheckAlert(suggestion, r.triage, detection.source);
     renderRechecks(suggestion);
     setGeminiScenario(detection, suggestion);
     setLocalAIObservations(state.mode === 'replay' ? [] : suggestion.observations);
@@ -511,6 +512,16 @@
   var geminiScenario;
   var geminiPending = false;
   var programFallback = 'Using ASTROGUARD’s rule-based guidance above.';
+
+  function renderCurrentCheckAlert(suggestion, triage, source) {
+    var alert = state.mode === 'replay' ? null : Detection.currentAlert(suggestion, triage, source);
+    var banner = $('#currentCheckAlert');
+    var message = $('#currentCheckAlertText');
+    banner.hidden = !alert;
+    if (alert) banner.dataset.tone = alert.tone;
+    var text = alert ? alert.text : '';
+    if (message.textContent !== text) message.textContent = text;
+  }
 
   function recheckLines() {
     return Object.entries(state.confirm).flatMap(function ([id, record]) {
@@ -618,6 +629,8 @@
     geminiScenario = next;
     $('#runGemini').disabled = !next.request || geminiPending;
     $('#runGemini').textContent = example ? 'Analyze a demo example with AI' : 'Analyze mission with AI';
+    $('#geminiTitle').textContent = example && canReview ? 'AI review · Separate simulated example' : 'AI review';
+    $('#geminiContext').hidden = !example || !canReview;
     $('#geminiFindings').hidden = true;
     $('#geminiClarification').hidden = true;
     $('#geminiStatus').textContent = next.status + ' ' + programFallback;
@@ -848,7 +861,9 @@
       if (!row) return;
       var band = S.bandFor(m, S.readinessReading(detectionInput(), m.id));
       var chip = $('[data-role="band"]', row);
-      chip.textContent = band.label;
+      var noRestContext = m.id === 'heartRate' && Detection.reading(detectionInput(), m.id).state === 'usable' &&
+        state.activity !== 'rest';
+      chip.textContent = noRestContext ? (state.activity === 'exercise' ? 'Exercise reading' : 'Activity needed') : band.label;
       chip.className = 'band-chip ' + levelClass(band.level);
       row.setAttribute('data-level', band.level);
     });
@@ -1136,6 +1151,12 @@
     });
     $('#planRecheckForm').addEventListener('submit', recordPlanRecheck);
     $('#planRecheckMetric').addEventListener('change', function () { $('#planRecheckValue').value = ''; });
+    $('#openCurrentAlert').addEventListener('click', function () {
+      $('[data-tab="plan"]').click();
+      $('#crewSuggestion').scrollIntoView({ block: 'center' });
+      $('#crewSuggestionTitle').tabIndex = -1;
+      $('#crewSuggestionTitle').focus({ preventScroll: true });
+    });
     $('#runGemini').addEventListener('click', runGemini);
     $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */

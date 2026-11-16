@@ -828,23 +828,9 @@
   }
 
   function actionsCard(result) {
-    var seen = {};
-    var out = [];
-    var order = D.SYSTEMS.slice().sort(function (a, b) {
-      return (result.systems[b.id].severity || 0) - (result.systems[a.id].severity || 0);
-    });
-
-    order.forEach(function (sys) {
-      var r = result.systems[sys.id];
-      if (!r.assessed || r.status === 'GO') return;
-      r.actions.forEach(function (a) {
-        if (seen[a]) return;
-        seen[a] = true;
-        out.push({ text: a, system: sys.name });
-      });
-    });
-
-    out = out.slice(0, 6);
+    var out = collectActions(result).concat((result.hazardWarnings || []).map(function (item) {
+      return { text: item.next, system: item.title };
+    }));
 
     var body = out.length
       ? '<ol class="action-list">' + out.map(function (a) {
@@ -2538,9 +2524,16 @@
         toast('The wearable reading is outside the supported input range. Verify the sensor reading before entering it.');
         return;
       }
+      var activity = $('#missionReadingActivity');
+      var otherVital = sample.metric === 'heartRate' ? 'spo2' : 'heartRate';
+      if (event.data.activity === 'rest' && activity.value === 'unknown' && !Number.isFinite(state.draft[otherVital])) {
+        activity.value = 'rest';
+      }
       setDraftValue(sample.metric, String(sample.value));
       state.wearableDraft[sample.metric] = sample;
-      toast('Wearable reading added with its original timestamp. Run check to save it.');
+      toast(activity.value === 'rest'
+        ? 'Resting reading added with its original timestamp. Run check to save it.'
+        : 'Reading added with its original timestamp. Review the activity context before saving.');
     });
     $('#equipmentReadingFile').addEventListener('change', async function (event) {
       var input = event.currentTarget;

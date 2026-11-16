@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
 <title>ASTROGUARD — In-Flight Health Console</title>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 <link rel="stylesheet" href="css/home.css">
 </head>
 <body class="is-landing">
@@ -214,12 +214,17 @@
     <button type="button" class="btn" id="wearableBack">Back</button>
     <h1>Connect wearable device</h1>
     <div class="card">
-      <p>Use a Bluetooth Low Energy device that broadcasts the standard Heart Rate Service. Enable heart-rate broadcasting on the device first.</p>
+      <p>Live pairing requires a Bluetooth Low Energy device with the standard Heart Rate Service. Enable its heart-rate broadcast mode first. For devices without live broadcasting, use the file import below.</p>
       <div class="portal-actions">
         <button type="button" id="pairWearable" class="btn btn-primary">Choose device</button>
         <button type="button" id="reconnectWearable" class="btn" disabled>Reconnect</button>
         <button type="button" id="disconnectWearable" class="btn" disabled>Disconnect</button>
       </div>
+      <details>
+        <summary>Device missing from the list?</summary>
+        <p>Some devices expose the Heart Rate Service without advertising it. You can show other nearby Bluetooth devices and select your own sensor.</p>
+        <button type="button" class="btn" id="browseWearable">Show more Bluetooth devices</button>
+      </details>
       <p id="wearableStatus" role="status">No device connected.</p>
       <p id="wearableReading">Live heart rate · —</p>
       <button type="button" id="useLiveInMissionConsole" class="btn" hidden disabled>Add latest resting heart rate to New Mission</button>
@@ -314,6 +319,10 @@
     </div>
     <div class="status-chip" id="statusChip">NO DATA</div>
   </div>
+  <aside id="currentCheckAlert" class="current-check-alert" hidden>
+    <p role="alert" aria-atomic="true" id="currentCheckAlertText"></p>
+    <button type="button" id="openCurrentAlert" class="btn">View current alert</button>
+  </aside>
 </header>
 
 <main class="shell">
@@ -607,7 +616,8 @@
             <div id="astroguardEvidence" hidden></div>
             <div id="optionalAiControls">
             <div id="geminiReview">
-              <h4>AI review</h4>
+              <h4 id="geminiTitle">AI review</h4>
+              <p id="geminiContext" class="ai-example-context" hidden>Uses independent simulated readings. Check the current alert and Crew Suggestion for your entered readings.</p>
               <p id="geminiStatus" role="status">Using ASTROGUARD’s rule-based guidance above.</p>
               <button type="button" id="runGemini" class="btn btn-primary" disabled>Analyze mission with AI</button>
               <ol id="geminiFindings" hidden></ol>
@@ -726,7 +736,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
-<script src="js/detection.js?v=5"></script>
+<script src="js/detection.js?v=6"></script>
 <script src="js/hazard-monitor.js?v=4"></script>
 <script src="js/scoring.js?v=3"></script>
 <script src="js/charts.js"></script>
@@ -736,19 +746,19 @@
 <script src="data/sample-mission.js"></script>
 <script src="data/i4-replay.js"></script>
 <script src="data/cloud-ai-config.js?v=1"></script>
-<script src="js/wearable.js"></script>
+<script src="js/wearable.js?v=2"></script>
 <script src="js/wearable-files.js"></script>
 <script src="js/local-ai.js"></script>
 <script src="data/astroguard-evidence.js"></script>
 <script src="js/astroguard-evidence.js"></script>
 <script src="js/self-check.js"></script>
 <script src="js/cognitive-check.js?v=2"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/app.js?v=14"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>
 <script src="js/mission-demo.js?v=2"></script>
-<script src="js/portal.js?v=3"></script>
+<script src="js/portal.js?v=4"></script>
 </body>
 </html>
 
