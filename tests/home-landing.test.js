@@ -48,9 +48,9 @@ test('the landing page stays offline: no remote asset or script', () => {
   const landing = html.match(/<header class="site-nav"[\s\S]*?<\/header>/)[0]
     + html.match(/<section id="homeView"[\s\S]*?<\/section>\s*<\/section>/)[0];
   assert.equal(landing.match(/https?:\/\//g), null, 'the landing markup must not load remote resources');
-  assert.ok(homeCss.includes('url("../assets/hero-space.jpg")'));
-  assert.ok(fs.existsSync(path.join(root, 'assets', 'hero-space.jpg')), 'the hero image is missing');
-  assert.ok(html.includes('<link rel="stylesheet" href="css/home.css">'));
+  assert.ok(homeCss.includes('url("../assets/hero-space-si.png")'));
+  assert.ok(fs.existsSync(path.join(root, 'assets', 'hero-space-si.png')), 'the hero image is missing');
+  assert.ok(html.includes('<link rel="stylesheet" href="css/home.css?v=2">'));
 });
 
 test('the landing page carries the AstroGuard name, not the old one', () => {
@@ -73,4 +73,14 @@ test('the settings popover is reachable and reachable states are wired', () => {
   assert.ok(html.includes('id="siteReduceMotion"'));
   assert.ok(portalJs.includes("closeSettings()"));
   assert.ok(portalJs.includes("applyMotion(motionToggle.checked)"));
+});
+
+test('homepage has a visible image disclosure and links to code and data provenance', () => {
+  const disclosure = JSON.parse(read('si-disclosure.json'));
+  assert.match(html, /<span class="si-image-watermark">SI-generated image<\/span>/);
+  assert.ok(html.includes('href="si-disclosure.json"'));
+  assert.equal(disclosure.media.hero.location, 'assets/hero-space-si.png');
+  assert.ok(disclosure.code.tools.includes('OpenAI Codex'));
+  assert.equal(disclosure.data.historical.classification, 'Source-derived');
+  assert.doesNotMatch(read('data/sample-mission.js'), /ARTEMIS VII/);
 });

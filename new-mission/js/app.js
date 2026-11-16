@@ -1815,7 +1815,7 @@
         '<label class="field">' +
           '<span>Mission name</span>' +
           '<input id="' + prefix + 'Mission" type="text" maxlength="48" autocomplete="off" spellcheck="false" value="' +
-            esc(rec.mission || '') + '" placeholder="e.g. ARTEMIS VII">' +
+            esc(rec.mission || '') + '" placeholder="e.g. ORBITAL TRAINING">' +
         '</label>' +
         '<label class="field">' +
           '<span>Launch date</span>' +

@@ -19,7 +19,7 @@ window.CC_STORAGE = (function () {
   function emptyMission() {
     return {
       version: VERSION,
-      name: 'ARTEMIS VII',
+      name: 'ASTROGUARD TRAINING',
       crew: 'CDR-1',
       flightDay: 1,
       entries: []
@@ -38,6 +38,10 @@ window.CC_STORAGE = (function () {
     m.flightDay = typeof raw.flightDay === 'number' ? raw.flightDay : m.flightDay;
     if (raw.details && typeof raw.details === 'object' && !Array.isArray(raw.details)) m.details = raw.details;
     m.entries = Array.isArray(raw.entries) ? raw.entries.filter(validEntry).map(normalizeEntry) : [];
+    if (m.name === 'ARTEMIS VII' && !m.details && m.entries.length &&
+        m.entries.every(function (entry) { return entry.source === 'simulated'; })) {
+      m.name = 'ASTROGUARD TRAINING';
+    }
     m.version = VERSION;
     return m;
   }

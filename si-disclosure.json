@@ -1,0 +1,35 @@
+{
+  "schema": "astroguard.si-disclosure.v1",
+  "project": "AstroGuard",
+  "code": {
+    "classification": "SI-assisted",
+    "tools": ["OpenAI Codex"],
+    "uses": ["Implementation", "Debugging", "Automated test authoring", "Documentation"],
+    "scope": ["Browser dashboards", "Health rules and explanations", "Wearable integration", "Backend and deployment code", "Tests"]
+  },
+  "data": {
+    "synthetic": {
+      "classification": "SI-assisted synthetic data",
+      "locations": ["data/sample-mission.js", "js/data.js", "js/mission-demo.js", "tests/fixtures"],
+      "use": "Simulated mission and test inputs. No crew measurements are claimed."
+    },
+    "historical": {
+      "classification": "Source-derived",
+      "locations": ["data/i4", "js/i4-records.js"],
+      "use": "Published Inspiration4 measurements, summaries, and digitized chart estimates, with provenance shown in replay. SI assisted integration code."
+    }
+  },
+  "media": {
+    "hero": {
+      "classification": "SI-generated image",
+      "tool": "OpenAI image generation",
+      "location": "assets/hero-space-si.png",
+      "watermark": "SI-generated image"
+    },
+    "generatedAudioOrVideoInRepository": false
+  },
+  "runtime": {
+    "Amazon Nova Micro": "Ranks coded findings for simulated examples in the public demo.",
+    "Qwen3": "Optional local review when the model and runtime are available."
+  }
+}
