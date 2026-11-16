@@ -340,3 +340,26 @@ test('guided self-check feeds real entries only and escalates a symptom-only che
   assert.equal(suggestion.severity, 'CRITICAL');
   assert.match(suggestion.next, /contact the flight surgeon now/);
 });
+
+test('cabin findings stay available locally while supported demo findings retain their AI indexes', () => {
+  const app = fs.readFileSync(require.resolve('../js/app.js'), 'utf8');
+  const render = app.slice(app.indexOf('  function setGeminiScenario('), app.indexOf('  function postAIReview('));
+  const elements = new Map();
+  const context = {
+    state: { mode: 'simulator', mission: {} }, cloudAIUrl: 'enabled',
+    geminiPending: false, geminiScenario: null, programFallback: '',
+    $: id => {
+      if (!elements.has(id)) elements.set(id, {});
+      return elements.get(id);
+    }
+  };
+  vm.runInNewContext(render + `
+    setGeminiScenario({source: 'simulated'}, {
+      severity: 'WARNING', observations: ['Cabin pressure warning','Low blood oxygen'], findingUrgencies: [2, 2],
+      findingCodes: [{kind:'alert',metric:'cabinPressure'},{kind:'alert',metric:'spo2'}]
+    });
+  `, context);
+  assert.deepEqual(Array.from(context.geminiScenario.requestIndices), [1]);
+  assert.equal(context.geminiScenario.request.findings[0].metric, 'spo2');
+  assert.equal(context.geminiScenario.observations[0], 'Cabin pressure warning');
+});

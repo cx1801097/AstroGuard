@@ -33,10 +33,7 @@ window.CC_SCORING = (function () {
   }
 
   function readinessReading(entry, key) {
-    if (entry.quality?.[key] === 'invalid') return undefined;
-    if (key === 'heartRate' && entry.activity === 'exercise') return undefined;
-    if (key === 'heartRate' || key === 'spo2') return window.CC_DETECTION.reading(entry, key).value;
-    return entry.values[key];
+    return window.CC_DETECTION.readinessReading(entry, key);
   }
 
   function levelLabel(level) { return D.LEVELS[level] || 'UNKNOWN'; }

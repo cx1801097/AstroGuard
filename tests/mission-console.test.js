@@ -125,3 +125,83 @@ test('the dashboard and New Mission flag severe pressure, then agree on the repe
   compare(emergency, true);
   compare(repeat, false);
 });
+
+test('shared vital safety check excludes exercise pulse and failed sensors in both consoles', () => {
+  const detection = require('../js/detection');
+  const dashboard = { CC_DETECTION: detection };
+  const mission = { CC_DETECTION: detection };
+  for (const [directory, window] of [['../js', dashboard], ['../new-mission/js', mission]]) {
+    for (const file of ['data.js', 'scoring.js']) {
+      vm.runInNewContext(fs.readFileSync(path.join(__dirname, directory, file), 'utf8'), { window });
+    }
+  }
+  const values = { heartRate: 150, spo2: 88 };
+  for (const activity of ['unknown', 'exercise']) {
+    const ctx = { activity, quality: { spo2: 'invalid' }, flightDay: 3, source: 'measured', crew: 'TEST' };
+    assert.equal(dashboard.CC_SCORING.evaluate(values, ctx).results.heartRate.value, undefined);
+    assert.equal(mission.CC_SCORING.evaluate(values, ctx).results.heartRate.absent, true);
+    assert.equal(mission.CC_SCORING.evaluate(values, ctx).results.spo2.absent, true);
+  }
+  const ctx = { activity: 'rest', flightDay: 3, source: 'measured', crew: 'TEST' };
+  const rootVital = detection.evaluate({ ...ctx, day: 3, values });
+  const missionResult = mission.CC_SCORING.evaluate(values, ctx);
+  assert.equal(rootVital.severity, 'CRITICAL');
+  assert.equal(missionResult.results.spo2.level, 4);
+  assert.equal(missionResult.results.spo2.rule, 'vital-safety');
+  assert.equal(missionResult.triage, 'NO-GO');
+});
+
+test('New Mission keeps activity and sensor quality through export and import', () => {
+  const record = storage.fromJSON(JSON.stringify({ crewId: 'TEST', entries: [{
+    at, values: { heartRate: 150, spo2: 88 },
+    activity: 'exercise', quality: { spo2: 'invalid', unrelated: 'invalid' }
+  }] }));
+  const entry = storage.fromJSON(storage.toJSON(record)).entries[0];
+  assert.equal(entry.activity, 'exercise');
+  assert.equal(entry.quality.spo2, 'invalid');
+  assert.equal(Object.hasOwn(entry.quality, 'unrelated'), false);
+});
+
+test('mission timeline separates device sampling from check-in and repeat logging', () => {
+  const { build } = require('../new-mission/js/mission-timeline');
+  const logAt = '2026-11-14T13:05:00.000Z';
+  const repeatAt = '2026-11-14T13:12:00.000Z';
+  const originalWearable = { ...sample, value: 142 };
+  const events = build({
+    at: logAt,
+    values: { heartRate: 70, spo2: 88, cabinCo2Avg: 4, sleepTargetAtCheck: 8 },
+    quality: { spo2: 'invalid' },
+    symptoms: ['headache'],
+    confirm: { heartRate: { first: 142, second: 70, at: repeatAt, resolved: 'below_threshold', originalWearable } }
+  }, storage.cleanWearable);
+  assert.equal(events.length, 5);
+  assert.deepEqual(events[0], { kind: 'reading', metric: 'heartRate', value: 142, at,
+    timeBasis: 'device sample', device: 'ble-hrs', quality: null });
+  assert.equal(events.find(event => event.metric === 'cabinCo2Avg').timeBasis, 'check-in logged');
+  assert.equal(events.find(event => event.metric === 'spo2').quality, 'unreliable');
+  assert.equal(events.find(event => event.kind === 'symptom').at, logAt);
+  assert.equal(events.at(-1).timeBasis, 'recheck logged');
+  assert.equal(events.at(-1).at, repeatAt);
+});
+
+test('cabin pressure and oxygen partial pressure use separate mission ranges and quality flags', () => {
+  const hazards = require('../js/hazard-monitor');
+  const context = { source: 'measured', values: {
+    cabinPressure: 68, cabinPressureLow: 70, cabinPressureHigh: 105,
+    cabinOxygen: 19, cabinOxygenLow: 18, cabinOxygenHigh: 23, spo2: 88
+  } };
+  const find = (input, id) => hazards.evaluate(input).find(reading => reading.id === id);
+  assert.equal(find(context, 'cabinPressure').status, 'WARNING');
+  assert.equal(find(context, 'cabinOxygen').status, 'WITHIN CHECK LIMIT');
+  assert.equal(find({ ...context, quality: { cabinPressure: 'invalid' } }, 'cabinPressure').status, 'UNKNOWN');
+  assert.equal(find({ ...context, values: { ...context.values, cabinOxygenLow: 25 } }, 'cabinOxygen').status, 'UNKNOWN');
+  assert.equal(find({ ...context, source: 'digitized' }, 'cabinPressure').status, 'UNKNOWN');
+  assert.equal(find({ ...context, values: { ...context.values, cabinOxygen: 23 } }, 'cabinOxygen').status, 'WITHIN CHECK LIMIT');
+});
+
+test('equipment adapter accepts cabin pressure in kPa and keeps original time', () => {
+  const { observation } = require('../new-mission/js/mission-interfaces');
+  const input = { metric: 'cabinPressure', value: 91, unit: 'kPa', quality: 'usable', timestamp: at, deviceId: 'cabin-1' };
+  assert.equal(observation(input).timestamp, at);
+  assert.equal(observation({ ...input, unit: 'mmHg' }), null);
+});

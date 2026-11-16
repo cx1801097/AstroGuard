@@ -236,9 +236,18 @@ window.CC_SCORING = (function () {
     var absent = [];
     var escalations = [];
     var baselineUsed = false;
+    var assessmentEntry = { values: values, quality: ctx.quality, activity: ctx.activity };
+    var safety = ctx.source === 'measured' ? window.CC_DETECTION?.evaluate(
+      { ...assessmentEntry, day: flightDay, crew: ctx.crew, source: ctx.source },
+      entries.filter(entry => entry.phase === 'flight').map(entry => ({
+        ...entry, crew: ctx.crew, source: ctx.source
+      }))
+    ) : null;
+    var safetyFindings = new Map((safety?.findings || []).filter(finding => finding.kind === 'threshold')
+      .map(finding => [finding.metric, finding]));
 
     D.ALL_METRICS.forEach(function (m) {
-      var v = values[m.id];
+      var v = window.CC_DETECTION ? window.CC_DETECTION.readinessReading(assessmentEntry, m.id) : values[m.id];
       var band = bandFor(m, v, bandCtx);
 
       if (band.absent) {
@@ -272,6 +281,9 @@ window.CC_SCORING = (function () {
         else if (dband.level === band.level) rule = 'both';
       }
 
+      var safetyFinding = safetyFindings.get(m.id);
+      var safetyLevel = safetyFinding ? (safetyFinding.severity === 'CRITICAL' ? 4 : 3) : 0;
+      if (safetyLevel > level) { level = safetyLevel; rule = 'vital-safety'; }
       results[m.id] = {
         value: v,
         level: level,
@@ -282,7 +294,7 @@ window.CC_SCORING = (function () {
         direction: dband ? dband.direction : null,
         baseline: dband ? dband.base : null,
         rule: rule,
-        label: band.label,
+        label: rule === 'vital-safety' ? 'Vital safety threshold (' + safetyFinding.limit + ')' : band.label,
         levelName: levelLabel(level),
         severity: SEV[level],
         absent: false,
@@ -582,6 +594,7 @@ window.CC_SCORING = (function () {
           flightDay: e.day,
           exposureDays: exposure,
           entries: sorted,
+          activity: e.activity, quality: e.quality,
           refs: ctx.refs,
           baseline: ctx.baseline,
           personal: ctx.personal

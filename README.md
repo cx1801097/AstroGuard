@@ -163,3 +163,23 @@ Supported metric IDs and units are listed in
 `new-mission/js/mission-interfaces.js`. Equipment bridges must map their
 vendor format into this contract. Physical device and mission-network
 qualification require tests with the equipment and gateway used on the mission.
+
+## Data and validation priorities
+
+Collect timestamped, consented original and repeat readings with units,
+device or instrument, signal quality and activity at measurement. Where
+available, retain a simultaneous reference instrument measurement. Add
+sleep duration, recent exertion and symptom timing as context. For hazards,
+collect the exposure or averaging window and the mission or lab reference
+used (for example, a verified one-hour cabin CO₂ average or a same-site bone
+measurement). Historical, measured and synthetic observations need distinct
+provenance. Keep private observations outside the public demo and repository.
+
+For each iteration, keep independently labeled cases covering stable checks,
+post-exercise pulse, unreliable sensors, boundary values, multiple-day
+deterioration, and recovery after recheck. Use the same cases across both
+consoles and the cloud review pipeline. Before publishing a measured accuracy
+claim, use a held-out set with independent review and report counts for
+missed alerts, false alerts and unassessable cases by condition and source.
+The cloud review receives simulated finding codes and ranks them. Safety
+thresholds, quality exclusions and urgent guidance run locally.

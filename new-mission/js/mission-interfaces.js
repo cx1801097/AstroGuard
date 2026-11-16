@@ -30,6 +30,7 @@
     systolic: ['mmHg', 1, 300], diastolic: ['mmHg', 1, 250],
     temperature: ['°C', 20, 50], glucose: ['mg/dL', 1, 1500],
     radiationDose: ['mSv', 0, 100000], cabinCo2Avg: ['mmHg', 0, 760],
+    cabinPressure: ['kPa', 0, 1000], cabinOxygen: ['kPa', 0, 1000],
     wbc: ['K/µL', 0, 1000], boneDensityPct: ['%', -100, 100]
   };
 

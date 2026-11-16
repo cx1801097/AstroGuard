@@ -108,6 +108,18 @@
           </label>
         </div>
 
+        <fieldset class="form-group">
+          <legend>Vital reading context</legend>
+          <label class="field"><span>Activity during vital readings</span>
+            <select id="missionReadingActivity">
+              <option value="unknown">Unspecified</option>
+              <option value="rest">At rest</option>
+              <option value="exercise">During or just after exercise</option>
+            </select>
+          </label>
+          <label class="switch"><input type="checkbox" id="missionInvalidPulse"> Pulse reading was unreliable</label>
+          <label class="switch"><input type="checkbox" id="missionInvalidOxygen"> Blood oxygen reading was unreliable</label>
+        </fieldset>
         <div id="formHost"></div>
         <details class="form-group">
           <summary>Hazard monitoring readings</summary>
@@ -284,16 +296,18 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
-<script src="js/scoring.js"></script>
+<script src="../js/detection.js?v=5"></script>
+<script src="js/scoring.js?v=2"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>
-<script src="js/mission-interfaces.js"></script>
+<script src="js/mission-interfaces.js?v=2"></script>
 <script src="../js/follow-up.js?v=2"></script>
-<script src="js/storage.js?v=4"></script>
+<script src="js/storage.js?v=5"></script>
 <script src="data/i4/i4-missions.js"></script>
 <script src="../data/astroguard-evidence.js"></script>
 <script src="../js/astroguard-evidence.js"></script>
-<script src="../js/hazard-monitor.js?v=3"></script>
-<script src="js/app.js?v=5"></script>
+<script src="../js/hazard-monitor.js?v=4"></script>
+<script src="js/mission-timeline.js"></script>
+<script src="js/app.js?v=8"></script>
 </body>
 </html>

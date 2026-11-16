@@ -48,6 +48,13 @@
     return { state: 'usable', value };
   }
 
+  function readinessReading(entry, key) {
+    if (entry.quality?.[key] === 'invalid') return undefined;
+    if (key === 'heartRate' && entry.activity !== undefined && entry.activity !== 'rest') return undefined;
+    if (key === 'heartRate' || key === 'spo2') return reading(entry, key).value;
+    return entry.values?.[key];
+  }
+
   function median(values) {
     const sorted = values.slice().sort((a, b) => a - b);
     const middle = Math.floor(sorted.length / 2);
@@ -140,7 +147,7 @@
         if (count >= config.persistenceDays) persistent.add(key);
         critical ||= hit.severity === 'CRITICAL';
         warning = true;
-        findings.push({ metric: key, value: sample.value, kind: 'threshold', severity: hit.severity });
+        findings.push({ metric: key, value: sample.value, kind: 'threshold', severity: hit.severity, limit: hit.limit });
         reasons.push(display + ' meets the ' + hit.severity.toLowerCase() + ' threshold (' +
           hit.limit + '). Consecutive flagged days: ' + count + '.');
       }
@@ -293,7 +300,7 @@
   }
 
   const engine = { evaluate, defaults, sourceLabels, provenance, reading, guidance, reviewReport, crewSuggestion,
-    orderReviewObservations };
+    orderReviewObservations, readinessReading };
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else window.CC_DETECTION = engine;
 })();

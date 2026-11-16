@@ -15,6 +15,11 @@
     const Store = window.CC_STORAGE;
     const Console = window.CC_CONSOLE;
     const WearableFiles = window.CC_WEARABLE_FILES;
+    const demoScenarios = window.CC_DATA.SCENARIOS;
+    const restartMissionDemo = window.CC_MISSION_DEMO.mount(
+      byId('missionDemoView'), demoScenarios,
+      { detection: window.CC_DETECTION, scoring: window.CC_SCORING, hazards: window.CC_HAZARDS }
+    );
     const consoleView = byId('consoleView');
     let view = 'home';
     let wearableBack = 'home';
@@ -69,7 +74,7 @@
       const dashboard = ['simulator', 'replay', 'dashboard'].includes(next);
       byId('portal').hidden = dashboard;
       consoleView.hidden = !dashboard;
-      for (const name of ['home', 'missionConsole', 'mission', 'wearable']) byId(name + 'View').hidden = next !== name;
+      for (const name of ['home', 'missionConsole', 'mission', 'wearable', 'missionDemo']) byId(name + 'View').hidden = next !== name;
       consoleView.classList.toggle('replay-mode', next === 'replay');
       consoleView.classList.toggle('mission-mode', next === 'dashboard');
       byId('i4Replay').hidden = next !== 'replay';
@@ -94,6 +99,7 @@
       }
       if (next === 'simulator' || next === 'dashboard') window.CC_OPEN_NASA_LIVE?.();
       if (next === 'mission') showSavedMissions();
+      if (next === 'missionDemo') restartMissionDemo();
       if (next === 'missionConsole') {
         const frame = byId('missionConsoleFrame');
         if (!frame.hasAttribute('src')) frame.src = frame.dataset.src;

@@ -584,7 +584,9 @@
 
   function setGeminiScenario(detection, suggestion) {
     var inSimulator = state.mode === 'simulator';
-    var example = detection.source !== 'simulated' || suggestion.severity === 'UNKNOWN' || !suggestion.findingCodes.length;
+    var localOnlyMetrics = ['cabinPressure', 'cabinOxygen'];
+    var example = detection.source !== 'simulated' || suggestion.severity === 'UNKNOWN' ||
+      suggestion.findingCodes.every(function (code) { return localOnlyMetrics.includes(code.metric); });
     var details = example ? {} : state.mission.details || {};
     if (cloudAIUrl && inSimulator && example) {
       var preset = D.SCENARIOS.nominal;
@@ -592,16 +594,19 @@
       var demoScore = S.evaluate(preset.values, { activity: 'rest' }, preset.symptoms);
       suggestion = Detection.crewSuggestion(detection, details, preset.symptoms, demoScore.alerts);
     }
-    var canReview = inSimulator && Boolean(cloudAIUrl) && suggestion.severity !== 'UNKNOWN' &&
-      suggestion.findingCodes.length > 0;
+    var requestIndices = suggestion.findingCodes.flatMap(function (code, index) {
+      return localOnlyMetrics.includes(code.metric) ? [] : [index];
+    });
+    var canReview = inSimulator && Boolean(cloudAIUrl) && suggestion.severity !== 'UNKNOWN' && requestIndices.length > 0;
     var next = {
       example: example,
       request: canReview ? {
         source: detection.source, severity: suggestion.severity, phase: details.phase,
-        findings: suggestion.findingCodes,
+        findings: requestIndices.map(function (index) { return suggestion.findingCodes[index]; }),
         pulseOximeter: details.pulseOximeter === 'available',
         heartRateMonitor: details.heartRateMonitor === 'available'
       } : null,
+      requestIndices: canReview ? requestIndices : [],
       observations: canReview ? suggestion.observations : [],
       findingUrgencies: canReview ? suggestion.findingUrgencies : [],
       status: !inSimulator ? 'AI review is limited to the simulated demo.' :
@@ -643,16 +648,15 @@
       if (reviewing !== geminiScenario) return;
       var result = await response.json();
       if (reviewing !== geminiScenario) return;
-      var reviewedIndices = reviewing.request.findings.map(function (_, index) { return index; });
-      var partial = false;
+      var reviewedIndices = reviewing.requestIndices;
+      var partial = reviewedIndices.length < reviewing.observations.length;
       // The previous Lambda rejects extended finding codes before calling Bedrock.
       if (response.status === 400 && result.error === 'AI review accepts only simulated finding categories.') {
-        var legacyIndices = reviewedIndices.filter(function (index) {
-          var code = reviewing.request.findings[index];
-          return code.kind !== 'symptom' && (!code.metric || code.metric === 'spo2' || code.metric === 'heartRate');
+        var legacyIndices = reviewing.request.findings.flatMap(function (code, index) {
+          return code.kind !== 'symptom' && (!code.metric || code.metric === 'spo2' || code.metric === 'heartRate') ? [index] : [];
         });
         if (legacyIndices.length && legacyIndices.length < reviewedIndices.length) {
-          reviewedIndices = legacyIndices;
+          reviewedIndices = legacyIndices.map(function (index) { return reviewing.requestIndices[index]; });
           partial = true;
           response = await postAIReview({ ...reviewing.request, findings: legacyIndices.map(function (index) {
             return reviewing.request.findings[index];
