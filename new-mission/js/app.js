@@ -2524,9 +2524,16 @@
         toast('The wearable reading is outside the supported input range. Verify the sensor reading before entering it.');
         return;
       }
+      var activity = $('#missionReadingActivity');
+      var otherVital = sample.metric === 'heartRate' ? 'spo2' : 'heartRate';
+      if (event.data.activity === 'rest' && activity.value === 'unknown' && !Number.isFinite(state.draft[otherVital])) {
+        activity.value = 'rest';
+      }
       setDraftValue(sample.metric, String(sample.value));
       state.wearableDraft[sample.metric] = sample;
-      toast('Wearable reading added with its original timestamp. Run check to save it.');
+      toast(activity.value === 'rest'
+        ? 'Resting reading added with its original timestamp. Run check to save it.'
+        : 'Reading added with its original timestamp. Review the activity context before saving.');
     });
     $('#equipmentReadingFile').addEventListener('change', async function (event) {
       var input = event.currentTarget;

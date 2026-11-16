@@ -214,12 +214,17 @@
     <button type="button" class="btn" id="wearableBack">Back</button>
     <h1>Connect wearable device</h1>
     <div class="card">
-      <p>Use a Bluetooth Low Energy device that broadcasts the standard Heart Rate Service. Enable heart-rate broadcasting on the device first.</p>
+      <p>Live pairing requires a Bluetooth Low Energy device with the standard Heart Rate Service. Enable its heart-rate broadcast mode first. For devices without live broadcasting, use the file import below.</p>
       <div class="portal-actions">
         <button type="button" id="pairWearable" class="btn btn-primary">Choose device</button>
         <button type="button" id="reconnectWearable" class="btn" disabled>Reconnect</button>
         <button type="button" id="disconnectWearable" class="btn" disabled>Disconnect</button>
       </div>
+      <details>
+        <summary>Device missing from the list?</summary>
+        <p>Some devices expose the Heart Rate Service without advertising it. You can show other nearby Bluetooth devices and select your own sensor.</p>
+        <button type="button" class="btn" id="browseWearable">Show more Bluetooth devices</button>
+      </details>
       <p id="wearableStatus" role="status">No device connected.</p>
       <p id="wearableReading">Live heart rate · —</p>
       <button type="button" id="useLiveInMissionConsole" class="btn" hidden disabled>Add latest resting heart rate to New Mission</button>
@@ -736,7 +741,7 @@
 <script src="data/sample-mission.js"></script>
 <script src="data/i4-replay.js"></script>
 <script src="data/cloud-ai-config.js?v=1"></script>
-<script src="js/wearable.js"></script>
+<script src="js/wearable.js?v=2"></script>
 <script src="js/wearable-files.js"></script>
 <script src="js/local-ai.js"></script>
 <script src="data/astroguard-evidence.js"></script>
@@ -748,7 +753,7 @@
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>
 <script src="js/mission-demo.js?v=2"></script>
-<script src="js/portal.js?v=3"></script>
+<script src="js/portal.js?v=4"></script>
 </body>
 </html>
 

@@ -43,27 +43,34 @@
       if (!busy) notify('disconnected');
     }
 
-    async function connect(pickDevice) {
+    async function connect(pickDevice, showAll = false) {
       if (busy || connected) return;
       if (!bluetooth || typeof bluetooth.requestDevice !== 'function') {
         notify('unsupported');
         return;
       }
       busy = true;
-      notify('connecting');
+      let stage = pickDevice ? 'choosing' : 'connecting';
+      notify(stage);
       let outcome;
       try {
         if (pickDevice) {
-          const selected = await bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
+          const selected = await bluetooth.requestDevice(showAll
+            ? { acceptAllDevices: true, optionalServices: ['heart_rate'] }
+            : { filters: [{ services: ['heart_rate'] }] });
+          stage = 'connecting';
           device?.removeEventListener('gattserverdisconnected', onDisconnect);
           device = selected;
           device.addEventListener('gattserverdisconnected', onDisconnect);
+          notify(stage);
         }
         if (!device?.gatt) throw new Error('Missing GATT device');
         const server = await device.gatt.connect();
+        stage = 'service';
         const service = await server.getPrimaryService('heart_rate');
         characteristic = await service.getCharacteristic('heart_rate_measurement');
         characteristic.addEventListener('characteristicvaluechanged', receive);
+        stage = 'notifications';
         await characteristic.startNotifications();
         if (!device.gatt.connected || !characteristic) throw new Error('Device disconnected during setup');
         connected = true;
@@ -71,7 +78,10 @@
       } catch (error) {
         clearStream();
         if (device?.gatt?.connected) device.gatt.disconnect();
-        outcome = error.name === 'NotFoundError' && pickDevice && !device ? 'not-selected' : 'failed';
+        outcome = ['SecurityError', 'NotAllowedError'].includes(error.name) ? 'permission-blocked'
+          : error.name === 'NotFoundError' && stage === 'choosing' ? 'not-selected'
+          : error.name === 'NotFoundError' && stage === 'service' ? 'no-heart-rate'
+          : stage === 'notifications' ? 'notifications-failed' : 'failed';
       } finally {
         busy = false;
         notify(outcome);
@@ -88,6 +98,7 @@
 
     return {
       pair: () => connect(true),
+      browse: () => connect(true, true),
       reconnect: () => connect(false),
       disconnect
     };

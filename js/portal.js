@@ -122,7 +122,7 @@
       if (!frame.contentWindow) return;
       const origin = location.protocol === 'file:' ? '*' : location.origin;
       show('missionConsole');
-      frame.contentWindow.postMessage({ type: 'astroguard:wearable-reading', sample }, origin);
+      frame.contentWindow.postMessage({ type: 'astroguard:wearable-reading', sample, activity: 'rest' }, origin);
     }
 
     function showReplay() {
@@ -238,18 +238,23 @@
     }
 
     function updateConnection({ state, deviceName, canReconnect }) {
-      const busy = state === 'connecting';
+      const busy = state === 'choosing' || state === 'connecting';
       const connected = state === 'connected';
       const messages = {
-        connecting: 'Connecting to the wearable…',
+        choosing: 'Choose your sensor in the browser’s Bluetooth window. If it is missing, enable heart-rate broadcasting on the sensor.',
+        connecting: 'Device selected. Connecting and starting the heart-rate stream…',
         connected: 'Connected to ' + (deviceName || 'heart-rate sensor') + '. Waiting for readings if none are shown.',
         disconnected: 'Device disconnected. Reconnect or choose a different device.',
         unsupported: 'Bluetooth is unavailable here. Open the app over HTTPS or localhost in a browser with Web Bluetooth.',
-        'not-selected': 'No device selected. Turn on heart-rate broadcasting and try again.',
+        'not-selected': 'No device selected. If your sensor is missing, enable heart-rate broadcasting or try Show more Bluetooth devices.',
+        'permission-blocked': 'Bluetooth permission was blocked. Check this browser’s site permissions or use the file import.',
+        'no-heart-rate': 'The selected device did not expose the standard Heart Rate Service. Enable broadcasting or use the file import.',
+        'notifications-failed': 'The device was found, but the heart-rate stream did not start. Disconnect other apps using the sensor and retry.',
         failed: 'Connection failed. Check Bluetooth, sensor broadcasting, and whether another app is using the sensor. Then retry.'
       };
       for (const id of ['wearableStatus', 'missionWearableStatus']) byId(id).textContent = messages[state];
       byId('pairWearable').disabled = busy || connected;
+      byId('browseWearable').disabled = busy || connected;
       byId('reconnectWearable').disabled = busy || connected || !canReconnect;
       byId('disconnectWearable').disabled = !connected;
       byId('recordWearable').disabled = !connected;
@@ -371,6 +376,7 @@
     });
 
     byId('pairWearable').addEventListener('click', adapter.pair);
+    byId('browseWearable').addEventListener('click', adapter.browse);
     byId('reconnectWearable').addEventListener('click', adapter.reconnect);
     byId('disconnectWearable').addEventListener('click', adapter.disconnect);
     byId('captureWearable').addEventListener('click', () => {
