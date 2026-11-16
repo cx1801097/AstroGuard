@@ -152,6 +152,19 @@ window.CC_STORAGE = (function () {
       ? new Date(value).toISOString() : null;
   }
 
+  var MISSING_REASONS = Object.freeze({
+    equipment_unavailable: 'Equipment unavailable',
+    reading_unreliable: 'Unable to obtain a reliable reading',
+    deferred: 'Deferred under mission procedures'
+  });
+
+  function cleanMissingReasons(values, reasons) {
+    return Object.fromEntries(Object.entries(reasons || {}).filter(function ([id, reason]) {
+      return /^[a-zA-Z][a-zA-Z0-9]*$/.test(id) && !['constructor', 'prototype'].includes(id) &&
+        Object.hasOwn(MISSING_REASONS, reason) && !Number.isFinite(values[id]);
+    }));
+  }
+
   function normalizeEntry(e) {
     var wearable = {};
     Object.keys(e.wearable || {}).forEach(function (metric) {
@@ -167,6 +180,7 @@ window.CC_STORAGE = (function () {
       quality: Object.fromEntries(['heartRate', 'spo2'].filter(metric => e.quality?.[metric] === 'invalid')
         .map(metric => [metric, 'invalid'])),
       values: cleanValues(e.values),
+      missingReasons: cleanMissingReasons(e.values, e.missingReasons),
       wearable: wearable,
       followUp: {
         acknowledgedAt: followUpTimestamp(e.followUp?.acknowledgedAt),
@@ -318,6 +332,8 @@ window.CC_STORAGE = (function () {
     DEFAULT_PROFILE: DEFAULT_PROFILE,
     RESOURCE_FIELDS: RESOURCE_FIELDS,
     cleanWearable: cleanWearable,
+    MISSING_REASONS: MISSING_REASONS,
+    cleanMissingReasons: cleanMissingReasons,
     cloneProfile: cloneProfile,
     load: load,
     save: save,

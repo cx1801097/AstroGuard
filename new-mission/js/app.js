@@ -95,6 +95,7 @@
     record: null,
     draft: {},
     wearableDraft: {},
+    missingReasons: {},
     symptoms: [],
     note: '',
     preflight: false,
@@ -188,11 +189,29 @@
     });
   }
 
+  function checkCoverage(values) {
+    var missing = missingRequired(values);
+    var reasons = Store.cleanMissingReasons(values, state.missingReasons);
+    return {
+      missing: missing,
+      unresolved: missing.filter(function (metric) { return !reasons[metric.id]; }),
+      reasons: reasons
+    };
+  }
+
   function canRun() {
     if (!hasRecord()) return false;
-    if (!visibleMetrics().length) return false;
     if (emergencySymptom()) return true;
-    return missingRequired(cleanDraft()).length === 0;
+    if (!visibleMetrics().length) return false;
+    var values = cleanDraft();
+    var hasMeasurement = visibleMetrics().some(function (metric) {
+      if (metric.id === 'heartRate' && $('#missionInvalidPulse').checked) return false;
+      if (metric.id === 'spo2' && $('#missionInvalidOxygen').checked) return false;
+      return Number.isFinite(values[metric.id]);
+    }) || ['cabinPressure', 'cabinOxygen', 'cabinCo2Avg'].some(function (id) {
+      return Number.isFinite(values[id]);
+    });
+    return (hasMeasurement || state.symptoms.length > 0) && !checkCoverage(values).unresolved.length;
   }
 
   function nextFlightDay(phase, at) {
@@ -209,7 +228,7 @@
   function evaluateValues(values, entry) {
     var day = entry && isNum(entry.day) ? entry.day : 0;
     var prof = profile();
-    return S.evaluate(values, {
+    var assessment = S.evaluate(values, {
       flightDay: day,
       exposureDays: day,
       entries: state.record.entries,
@@ -222,6 +241,10 @@
       crew: state.record.crewId,
       sleepTargetHours: prof.sleepTargetHours
     }, (entry && entry.symptoms) || []);
+    var monitor = window.CC_HAZARDS;
+    return monitor && entry
+      ? monitor.applyToMissionAssessment(assessment, monitor.evaluate(hazardInput({ ...entry, values: values })))
+      : assessment;
   }
 
   function evaluateEntry(entry) {
@@ -240,8 +263,8 @@
     };
   }
 
-  function renderHazardCheck(container, entry) {
-    if (container) window.CC_HAZARDS?.render(container, hazardInput(entry));
+  function renderHazardCheck(container, entry, findings) {
+    if (container) window.CC_HAZARDS?.render(container, hazardInput(entry), findings);
   }
 
   function dayLabel(entry) {
@@ -337,6 +360,12 @@
           ' placeholder="\u2014" autocomplete="off">' +
         '<span class="unit">' + esc(m.unit) + '</span>' +
       '</div>' +
+      (m.required ? '<label class="field" data-missing-for="' + m.id + '" hidden><span>Why ' + esc(m.label) +
+        ' is unavailable</span><select data-missing-reason="' + m.id + '">' +
+        '<option value="">Enter a reading or select a reason</option>' +
+        Object.entries(Store.MISSING_REASONS).map(function ([id, label]) {
+          return '<option value="' + id + '">' + esc(label) + '</option>';
+        }).join('') + '</select></label>' : '') +
       '<div class="mrow-base" data-role="base"></div>' +
     '</div>';
   }
@@ -421,6 +450,12 @@
         input.value = isNum(v) ? String(v) : '';
       }
 
+      var missingField = $('[data-missing-for]', row);
+      if (missingField) {
+        missingField.hidden = isNum(v);
+        var reasonSelect = $('select', missingField);
+        reasonSelect.value = state.missingReasons[id] || '';
+      }
       var q = quickBand(metric, v);
       var chip = $('[data-role="band"]', row);
       if (chip) {
@@ -461,28 +496,34 @@
 
     /* required meter */
     var values = cleanDraft();
-    var missing = missingRequired(values);
+    var coverage = checkCoverage(values);
+    var missing = coverage.missing;
     var requiredMetrics = visibleMetrics().filter(function (m) { return m.required; });
     var total = requiredMetrics.length;
     var have = total - missing.length;
     var meter = $('#reqMeter');
 
-    if (!total) {
-      meter.className = 'req-meter is-emergency';
-      meter.innerHTML = '<strong>No instrument group is enabled.</strong> Configure the mission instruments in the <strong>Mission</strong> tab before running a check.';
-    } else if (emergencySymptom() && missing.length) {
+    var ready = canRun();
+    if (emergencySymptom() && (!total || missing.length)) {
       meter.className = 'req-meter is-emergency';
       meter.innerHTML = '<strong>Emergency entry allowed.</strong> A red-flag symptom is selected, so this check can be logged with incomplete readings.';
+    } else if (!visibleMetrics().length) {
+      meter.className = 'req-meter is-emergency';
+      meter.innerHTML = '<strong>No instrument group is enabled.</strong> Configure the mission instruments in the <strong>Mission</strong> tab.';
+    } else if (missing.length && !coverage.unresolved.length) {
+      meter.className = 'req-meter' + (ready ? ' is-ready' : '');
+      meter.innerHTML = '<strong>' + have + ' measured, ' + missing.length + ' unavailable.</strong> ' +
+        (ready ? 'Ready for partial assessment.' : 'Enter at least one reading or report a symptom.');
     } else if (!missing.length) {
-      meter.className = 'req-meter is-ready';
-      meter.innerHTML = '<strong>' + total + ' of ' + total + ' required readings.</strong> Ready to run.';
+      meter.className = 'req-meter' + (ready ? ' is-ready' : '');
+      meter.innerHTML = ready ? '<strong>Ready to run.</strong>' : 'Enter at least one usable reading or report a symptom.';
     } else {
       meter.className = 'req-meter';
       meter.innerHTML = '<strong>' + have + ' of ' + total + ' required readings.</strong> Missing: ' +
-        esc(missing.map(function (m) { return m.label; }).join(', '));
+        esc(coverage.unresolved.map(function (m) { return m.label; }).join(', ')) + '. Enter a reading or choose why it is unavailable.';
     }
 
-    $('#runBtn').disabled = !canRun();
+    $('#runBtn').disabled = !ready;
   }
 
   /* ============================================================
@@ -572,21 +613,24 @@
     var evidenceStatus = { 'GO': 'NORMAL', 'CAUTION': 'WARNING', 'NO-GO': 'CRITICAL', 'NO DATA': 'UNKNOWN' };
     window.CC_RENDER_EVIDENCE?.(host.querySelector('.astroguard-evidence'),
       result.emergency ? 'CRITICAL' : evidenceStatus[result.triage] || 'UNKNOWN');
-    renderHazardCheck(host.querySelector('.saved-hazard-results'), entry);
+    renderHazardCheck(host.querySelector('.saved-hazard-results'), entry, result.hazardFindings);
   }
 
   function crewSuggestionCard(entry, result) {
     var alerts = result.alerts.slice().sort(function (a, b) { return b.level - a.level; });
+    var hazardWarnings = result.hazardWarnings || [];
     var situation = result.emergency ? 'A serious symptom was reported.' :
       result.triage === 'NO DATA' ? 'There are not enough usable readings to assess this check.' :
+      hazardWarnings.length ? 'One or more spaceflight hazard readings need review.' :
       alerts.length ? 'One or more readings or symptoms need a closer look.' :
       'The available readings did not raise an alert.';
     var next = result.emergency || result.triage === 'NO-GO'
       ? 'Tell the crew medical officer and contact the flight surgeon now. Follow the mission’s emergency checklist.'
+      : result.healthTriage === 'GO' && hazardWarnings.length ? 'Follow the mission procedure for the listed hazard.'
       : result.triage === 'CAUTION' ? 'If it is safe, repeat any unusual readings. Tell the crew medical officer if the unusual reading persists or you feel unwell.'
       : result.triage === 'NO DATA' ? 'Enter the readings you can safely collect. Tell the crew medical officer if you feel unwell.'
       : 'Continue scheduled checks. Tell the crew medical officer if you feel unwell.';
-    var exclusions = [];
+    var exclusions = missingReadingLines(entry);
     if (Number.isFinite(entry.values.heartRate) && entry.activity !== 'rest' && entry.quality?.heartRate !== 'invalid') {
       exclusions.push('Resting heart rate was not assessed. Record activity and use a resting reading when appropriate.');
     }
@@ -604,6 +648,9 @@
       }).join('') + '</ul>' : '') +
       (exclusions.length ? '<p class="muted">' + esc(exclusions.join(' ')) + '</p>' : '') +
       '<h4>What to do next</h4><p>' + esc(next) + '</p>' +
+      (hazardWarnings.length ? '<ul>' + hazardWarnings.map(function (item) {
+        return '<li>' + esc(item.title + ': ' + item.next) + '</li>';
+      }).join('') + '</ul>' : '') +
       (gear.length ? '<p>For the recheck, use the listed ' + esc(gear.join(' and ')) + '.</p>' : '') +
       ((result.emergency || result.triage === 'NO-GO') && inventory.medicalChannel
         ? '<p>Listed private medical channel: ' + esc(inventory.medicalChannel) + '</p>' : '') +
@@ -693,6 +740,9 @@
     }
     if (result.triage === 'GO') {
       return 'Every assessed system is within its limits. Continue the countermeasure schedule and log again tomorrow.';
+    }
+    if (result.healthTriage === 'GO' && result.hazardWarnings?.length) {
+      return 'A spaceflight hazard reading needs review. Follow the listed mission procedure.';
     }
     if (result.triage === 'CAUTION') {
       return 'Something is drifting. Act now \u2014 most flight issues are still reversible at this stage.';
@@ -849,6 +899,14 @@
     return new Array(75).join(ch || '-');
   }
 
+  function missingReadingLines(entry) {
+    return Object.entries(entry.missingReasons || {}).flatMap(function ([id, reason]) {
+      var metric = D.METRIC_BY_ID[id];
+      var label = Store.MISSING_REASONS[reason];
+      return metric && label ? [metric.label + ' · UNKNOWN · ' + label] : [];
+    });
+  }
+
   function buildHandover(entry, result) {
     var rec = state.record;
     var L = [];
@@ -857,6 +915,7 @@
     var pending = entry.pending || [];
     var stateWord = pending.length ? 'PROVISIONAL \u2014 unverified readings' : 'confirmed';
     var p = profile();
+    var hazardAlerts = result.hazardWarnings || [];
 
     push('ASTROGUARD \u2014 HANDOVER REPORT');
     push(ruleLine('='));
@@ -882,7 +941,7 @@
       result.alerts.forEach(function (a) {
         push(wrap('- ' + a.text, 72, '     '));
       });
-    } else {
+    } else if (!hazardAlerts.length) {
       push('   No reading outside its limits.');
     }
     push('');
@@ -935,8 +994,12 @@
         '. No measurement available in this check.', 72, '   '));
     }
 
-    var checkedHazards = window.CC_HAZARDS?.evaluate(hazardInput(entry)) || [];
-    var hazardAlerts = checkedHazards.filter(function (item) { return item.status === 'WARNING'; });
+    var unavailableReadings = missingReadingLines(entry);
+    if (unavailableReadings.length) {
+      push('');
+      push('   Unavailable readings:');
+      unavailableReadings.forEach(function (line) { push(wrap('- ' + line, 72, '     ')); });
+    }
     if (hazardAlerts.length) {
       push('');
       push('   Spaceflight hazard warnings:');
@@ -958,11 +1021,12 @@
     var actions = collectActions(result);
     if (actions.length) {
       actions.forEach(function (a, i) { push(wrap((i + 1) + '. ' + a.text, 72, '   ')); });
-    } else {
+    } else if (!hazardAlerts.length) {
       push('   Continue the countermeasure schedule. Repeat the check tomorrow.');
     }
+    hazardAlerts.forEach(function (item) { push(wrap('- ' + item.next, 72, '   ')); });
     push('');
-    if (result.triage !== 'GO' || pending.length) {
+    if ((result.healthTriage || result.triage) !== 'GO' || pending.length) {
       push(wrap('Escalate to the flight surgeon per the mission medical plan.', 72, '   '));
       push('');
     }
@@ -2141,6 +2205,7 @@
       var v = Number(raw);
       if (!isFinite(v)) return;
       state.draft[id] = v;
+      delete state.missingReasons[id];
     }
     syncForm();
     renderAssessment();
@@ -2165,6 +2230,7 @@
       phase: phase,
       activity: $('#missionReadingActivity').value,
       quality: quality,
+      missingReasons: checkCoverage(values).reasons,
       values: values,
       wearable: clone(state.wearableDraft),
       symptoms: state.symptoms.slice().sort(),
@@ -2272,6 +2338,7 @@
   }
 
   function resetVitalContext() {
+    state.missingReasons = {};
     $('#missionReadingActivity').value = 'unknown';
     $('#missionInvalidPulse').checked = false;
     $('#missionInvalidOxygen').checked = false;
@@ -2409,6 +2476,7 @@
         var imported = Store.fromJSON(String(reader.result));
         if (hasRecord() && !window.confirm('Replace the record on this device with the imported one?')) return;
         state.record = imported;
+        resetVitalContext();
         state.entryId = null;
         state.draft = {};
         state.wearableDraft = {};
@@ -2496,7 +2564,18 @@
     });
     $('#setupForm').addEventListener('submit', saveSetup);
     $('#checkForm').addEventListener('submit', runCheck);
+    ['#missionInvalidPulse', '#missionInvalidOxygen'].forEach(function (id) {
+      $(id).addEventListener('change', syncForm);
+    });
 
+    $('#formHost').addEventListener('change', function (event) {
+      var select = event.target.closest('[data-missing-reason]');
+      if (!select) return;
+      var id = select.dataset.missingReason;
+      if (Object.hasOwn(Store.MISSING_REASONS, select.value)) state.missingReasons[id] = select.value;
+      else delete state.missingReasons[id];
+      syncForm();
+    });
     $('#formHost').addEventListener('input', function (ev) {
       var input = ev.target;
       if (!input || !input.getAttribute) return;

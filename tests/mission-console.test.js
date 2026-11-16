@@ -205,3 +205,59 @@ test('equipment adapter accepts cabin pressure in kPa and keeps original time', 
   assert.equal(observation(input).timestamp, at);
   assert.equal(observation({ ...input, unit: 'mmHg' }), null);
 });
+
+test('an out-of-range cabin reading changes a nominal New Mission verdict without masking critical health alerts', () => {
+  const hazards = require('../js/hazard-monitor');
+  const context = { source: 'measured', values: { cabinPressure: 91, cabinPressureLow: 95, cabinPressureHigh: 105 } };
+  const nominal = { triage: 'GO', readiness: 97 };
+  const findings = hazards.evaluate(context);
+  const result = hazards.applyToMissionAssessment(nominal, findings);
+  assert.equal(result.triage, 'CAUTION');
+  assert.equal(result.healthTriage, 'GO');
+  assert.equal(result.readiness, 97);
+  assert.equal(result.hazardWarnings[0].id, 'cabinPressure');
+  assert.equal(hazards.applyToMissionAssessment({ triage: 'NO-GO' }, findings).triage, 'NO-GO');
+  assert.equal(hazards.applyToMissionAssessment({ triage: 'NO DATA' }, findings).triage, 'NO DATA');
+  const recheck = hazards.evaluate({ ...context, values: { ...context.values, cabinPressure: 98 } });
+  assert.equal(hazards.applyToMissionAssessment(nominal, recheck).triage, 'GO');
+});
+
+test('New Mission permits partial checks with reasons, blocks empty checks and preserves emergency entry', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../new-mission/js/app.js'), 'utf8');
+  const functions = app.slice(app.indexOf('  function checkCoverage('), app.indexOf('  function nextFlightDay('));
+  const metrics = [{ id: 'heartRate', required: true }, { id: 'spo2', required: true }];
+  const state = { draft: { heartRate: 68 }, missingReasons: {}, symptoms: [] };
+  let emergency = false;
+  let pulseInvalid = false;
+  const context = vm.createContext({
+    Store: storage, state,
+    missingRequired: values => metrics.filter(metric => !Number.isFinite(values[metric.id])),
+    visibleMetrics: () => metrics, cleanDraft: () => state.draft, hasRecord: () => true,
+    emergencySymptom: () => emergency,
+    $: id => ({ checked: id === '#missionInvalidPulse' && pulseInvalid })
+  });
+  vm.runInContext(functions, context);
+  assert.equal(context.canRun(), false);
+  state.missingReasons.spo2 = 'equipment_unavailable';
+  assert.equal(context.canRun(), true);
+  pulseInvalid = true;
+  assert.equal(context.canRun(), false);
+  pulseInvalid = false;
+  state.draft = {};
+  state.missingReasons.heartRate = 'reading_unreliable';
+  assert.equal(context.canRun(), false);
+  emergency = true;
+  assert.equal(context.canRun(), true);
+});
+
+test('missing reasons survive storage, and saved numeric measurements override stale reasons', () => {
+  const restored = storage.fromJSON(JSON.stringify({ crewId: 'SYNTHETIC', entries: [{
+    at, values: { heartRate: 68 }, missingReasons: {
+      heartRate: 'equipment_unavailable', spo2: 'reading_unreliable', sleepHours: 'invalid-reason'
+    }
+  }] }));
+  const entry = storage.fromJSON(storage.toJSON(restored)).entries[0];
+  assert.deepEqual(Object.keys(entry.missingReasons), ['spo2']);
+  assert.equal(entry.missingReasons.spo2, 'reading_unreliable');
+  assert.equal(Object.hasOwn(entry.values, 'spo2'), false);
+});

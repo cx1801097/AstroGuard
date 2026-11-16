@@ -143,7 +143,14 @@
     container.replaceChildren(source, list);
   }
 
-  const monitor = { evaluate, bind, sync, render, extraFields, observationFields };
+  function applyToMissionAssessment(assessment, findings) {
+    const hazardWarnings = findings.filter(finding => finding.status === 'WARNING');
+    const healthTriage = assessment.triage;
+    const triage = hazardWarnings.length && healthTriage === 'GO' ? 'CAUTION' : healthTriage;
+    return { ...assessment, triage, healthTriage, hazardWarnings, hazardFindings: findings };
+  }
+
+  const monitor = { evaluate, bind, sync, render, extraFields, observationFields, applyToMissionAssessment };
   if (typeof module !== 'undefined' && module.exports) module.exports = monitor;
   else window.CC_HAZARDS = monitor;
 }());
