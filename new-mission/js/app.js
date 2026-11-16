@@ -209,7 +209,7 @@
   function evaluateValues(values, entry) {
     var day = entry && isNum(entry.day) ? entry.day : 0;
     var prof = profile();
-    return S.evaluate(values, {
+    var assessment = S.evaluate(values, {
       flightDay: day,
       exposureDays: day,
       entries: state.record.entries,
@@ -222,6 +222,10 @@
       crew: state.record.crewId,
       sleepTargetHours: prof.sleepTargetHours
     }, (entry && entry.symptoms) || []);
+    var monitor = window.CC_HAZARDS;
+    return monitor && entry
+      ? monitor.applyToMissionAssessment(assessment, monitor.evaluate(hazardInput({ ...entry, values: values })))
+      : assessment;
   }
 
   function evaluateEntry(entry) {
@@ -240,8 +244,8 @@
     };
   }
 
-  function renderHazardCheck(container, entry) {
-    if (container) window.CC_HAZARDS?.render(container, hazardInput(entry));
+  function renderHazardCheck(container, entry, findings) {
+    if (container) window.CC_HAZARDS?.render(container, hazardInput(entry), findings);
   }
 
   function dayLabel(entry) {
@@ -572,17 +576,20 @@
     var evidenceStatus = { 'GO': 'NORMAL', 'CAUTION': 'WARNING', 'NO-GO': 'CRITICAL', 'NO DATA': 'UNKNOWN' };
     window.CC_RENDER_EVIDENCE?.(host.querySelector('.astroguard-evidence'),
       result.emergency ? 'CRITICAL' : evidenceStatus[result.triage] || 'UNKNOWN');
-    renderHazardCheck(host.querySelector('.saved-hazard-results'), entry);
+    renderHazardCheck(host.querySelector('.saved-hazard-results'), entry, result.hazardFindings);
   }
 
   function crewSuggestionCard(entry, result) {
     var alerts = result.alerts.slice().sort(function (a, b) { return b.level - a.level; });
+    var hazardWarnings = result.hazardWarnings || [];
     var situation = result.emergency ? 'A serious symptom was reported.' :
       result.triage === 'NO DATA' ? 'There are not enough usable readings to assess this check.' :
+      hazardWarnings.length ? 'One or more spaceflight hazard readings need review.' :
       alerts.length ? 'One or more readings or symptoms need a closer look.' :
       'The available readings did not raise an alert.';
     var next = result.emergency || result.triage === 'NO-GO'
       ? 'Tell the crew medical officer and contact the flight surgeon now. Follow the mission’s emergency checklist.'
+      : result.healthTriage === 'GO' && hazardWarnings.length ? 'Follow the mission procedure for the listed hazard.'
       : result.triage === 'CAUTION' ? 'If it is safe, repeat any unusual readings. Tell the crew medical officer if the unusual reading persists or you feel unwell.'
       : result.triage === 'NO DATA' ? 'Enter the readings you can safely collect. Tell the crew medical officer if you feel unwell.'
       : 'Continue scheduled checks. Tell the crew medical officer if you feel unwell.';
@@ -604,6 +611,9 @@
       }).join('') + '</ul>' : '') +
       (exclusions.length ? '<p class="muted">' + esc(exclusions.join(' ')) + '</p>' : '') +
       '<h4>What to do next</h4><p>' + esc(next) + '</p>' +
+      (hazardWarnings.length ? '<ul>' + hazardWarnings.map(function (item) {
+        return '<li>' + esc(item.title + ': ' + item.next) + '</li>';
+      }).join('') + '</ul>' : '') +
       (gear.length ? '<p>For the recheck, use the listed ' + esc(gear.join(' and ')) + '.</p>' : '') +
       ((result.emergency || result.triage === 'NO-GO') && inventory.medicalChannel
         ? '<p>Listed private medical channel: ' + esc(inventory.medicalChannel) + '</p>' : '') +
@@ -693,6 +703,9 @@
     }
     if (result.triage === 'GO') {
       return 'Every assessed system is within its limits. Continue the countermeasure schedule and log again tomorrow.';
+    }
+    if (result.healthTriage === 'GO' && result.hazardWarnings?.length) {
+      return 'A spaceflight hazard reading needs review. Follow the listed mission procedure.';
     }
     if (result.triage === 'CAUTION') {
       return 'Something is drifting. Act now \u2014 most flight issues are still reversible at this stage.';
@@ -857,6 +870,7 @@
     var pending = entry.pending || [];
     var stateWord = pending.length ? 'PROVISIONAL \u2014 unverified readings' : 'confirmed';
     var p = profile();
+    var hazardAlerts = result.hazardWarnings || [];
 
     push('ASTROGUARD \u2014 HANDOVER REPORT');
     push(ruleLine('='));
@@ -882,7 +896,7 @@
       result.alerts.forEach(function (a) {
         push(wrap('- ' + a.text, 72, '     '));
       });
-    } else {
+    } else if (!hazardAlerts.length) {
       push('   No reading outside its limits.');
     }
     push('');
@@ -935,8 +949,6 @@
         '. No measurement available in this check.', 72, '   '));
     }
 
-    var checkedHazards = window.CC_HAZARDS?.evaluate(hazardInput(entry)) || [];
-    var hazardAlerts = checkedHazards.filter(function (item) { return item.status === 'WARNING'; });
     if (hazardAlerts.length) {
       push('');
       push('   Spaceflight hazard warnings:');
@@ -958,11 +970,12 @@
     var actions = collectActions(result);
     if (actions.length) {
       actions.forEach(function (a, i) { push(wrap((i + 1) + '. ' + a.text, 72, '   ')); });
-    } else {
+    } else if (!hazardAlerts.length) {
       push('   Continue the countermeasure schedule. Repeat the check tomorrow.');
     }
+    hazardAlerts.forEach(function (item) { push(wrap('- ' + item.next, 72, '   ')); });
     push('');
-    if (result.triage !== 'GO' || pending.length) {
+    if ((result.healthTriage || result.triage) !== 'GO' || pending.length) {
       push(wrap('Escalate to the flight surgeon per the mission medical plan.', 72, '   '));
       push('');
     }

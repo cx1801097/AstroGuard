@@ -205,3 +205,19 @@ test('equipment adapter accepts cabin pressure in kPa and keeps original time', 
   assert.equal(observation(input).timestamp, at);
   assert.equal(observation({ ...input, unit: 'mmHg' }), null);
 });
+
+test('an out-of-range cabin reading changes a nominal New Mission verdict without masking critical health alerts', () => {
+  const hazards = require('../js/hazard-monitor');
+  const context = { source: 'measured', values: { cabinPressure: 91, cabinPressureLow: 95, cabinPressureHigh: 105 } };
+  const nominal = { triage: 'GO', readiness: 97 };
+  const findings = hazards.evaluate(context);
+  const result = hazards.applyToMissionAssessment(nominal, findings);
+  assert.equal(result.triage, 'CAUTION');
+  assert.equal(result.healthTriage, 'GO');
+  assert.equal(result.readiness, 97);
+  assert.equal(result.hazardWarnings[0].id, 'cabinPressure');
+  assert.equal(hazards.applyToMissionAssessment({ triage: 'NO-GO' }, findings).triage, 'NO-GO');
+  assert.equal(hazards.applyToMissionAssessment({ triage: 'NO DATA' }, findings).triage, 'NO DATA');
+  const recheck = hazards.evaluate({ ...context, values: { ...context.values, cabinPressure: 98 } });
+  assert.equal(hazards.applyToMissionAssessment(nominal, recheck).triage, 'GO');
+});
