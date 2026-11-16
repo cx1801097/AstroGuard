@@ -17,7 +17,7 @@
     const WearableFiles = window.CC_WEARABLE_FILES;
     const demoScenarios = window.CC_DATA.SCENARIOS;
     const restartMissionDemo = window.CC_MISSION_DEMO.mount(
-      byId('missionDemoView'), demoScenarios.critical, demoScenarios.nominal.values.spo2,
+      byId('missionDemoView'), demoScenarios,
       { detection: window.CC_DETECTION, scoring: window.CC_SCORING, hazards: window.CC_HAZARDS }
     );
     const consoleView = byId('consoleView');
