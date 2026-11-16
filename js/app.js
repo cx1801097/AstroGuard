@@ -48,6 +48,8 @@
     activity: 'unknown',
     source: 'measured',
     quality: {},
+    confirm: {},
+    recheckMetrics: [],
     symptoms: [],
     note: '',
     selected: 'cardiovascular',
@@ -78,6 +80,8 @@
     state.activity = entry ? entry.activity || 'unknown' : 'unknown';
     state.source = entry ? Detection.provenance(entry.source) : sourceIfEmpty;
     state.quality = entry ? cloneObj(entry.quality) : {};
+    state.confirm = window.CC_FOLLOW_UP.normalizeRechecks(entry?.confirm);
+    $('#planRecheckValue').value = '';
     state.symptoms = entry ? (entry.symptoms || []).slice() : [];
     state.note = entry ? entry.note || '' : '';
     state.wearable = entry?.wearable ? cloneObj(entry.wearable) : null;
@@ -430,6 +434,7 @@
     var hazardInput = { ...detectionInput(), sleepTarget: 7.5, history: state.mission.entries };
     var hazardFindings = Hazards?.evaluate(hazardInput) || [];
     var suggestion = Detection.crewSuggestion(detection, state.mission.details, state.symptoms, r.alerts, hazardFindings);
+    renderRechecks(suggestion);
     setGeminiScenario(detection, suggestion);
     setLocalAIObservations(state.mode === 'replay' ? [] : suggestion.observations);
     $('#crewSuggestion').hidden = state.mode === 'replay';
@@ -447,10 +452,11 @@
       }).join('') + '</ul>';
     $('#hazardReview').hidden = state.mode === 'replay' || !Hazards;
     if (!$('#hazardReview').hidden) Hazards.render($('#hazardResults'), hazardInput, hazardFindings);
-    var reportAssessment = state.symptoms.includes('chestPain')
-      ? Object.assign({}, detection, { severity: 'CRITICAL', reasons: ['Chest pain or pressure was reported.'].concat(detection.reasons) })
-      : detection;
-    var report = state.mode === 'replay' ? '' : Detection.reviewReport(state.mission.flightDay, reportAssessment);
+    var reportAssessment = Object.assign({}, detection, {
+      severity: suggestion.severity,
+      reasons: suggestion.observations.concat(recheckLines())
+    });
+    var report = state.mode === 'replay' ? '' : Detection.reviewReport(state.mission.flightDay, reportAssessment, recheckLines().length > 0);
     $('#groundReview').hidden = !report;
     if (!report) $('#groundReview').open = false;
     $('#groundReport').value = report;
@@ -505,6 +511,70 @@
   var geminiScenario;
   var geminiPending = false;
   var programFallback = 'Using ASTROGUARD’s rule-based guidance above.';
+
+  function recheckLines() {
+    return Object.entries(state.confirm).flatMap(function ([id, record]) {
+      var metric = D.METRIC_BY_ID[id];
+      if (!metric || record.second === null) return [];
+      return [metric.label + ': ' + record.first + ' → ' + record.second + ' ' + metric.unit +
+        ' · ' + (record.resolved === 'confirmed' ? 'still flagged' : 'below the alert threshold on recheck') +
+        ' · ' + record.at];
+    });
+  }
+
+  function renderRechecks(suggestion) {
+    var current = $('#planRecheckMetric').value;
+    state.recheckMetrics = [...new Set(suggestion.findingCodes.filter(function (code) {
+      return (code.kind === 'alert' || code.kind === 'baseline_change') &&
+        Object.hasOwn(D.METRIC_BY_ID, code.metric) && Number.isFinite(state.draft[code.metric]) &&
+        !state.confirm[code.metric];
+    }).map(function (code) { return code.metric; }))];
+    var history = recheckLines();
+    $('#planRecheck').hidden = state.mode === 'replay' || (!state.recheckMetrics.length && !history.length);
+    $('#planRecheckForm').hidden = !state.recheckMetrics.length;
+    $('#planRecheckMetric').replaceChildren(...state.recheckMetrics.map(function (id) {
+      return new Option(D.METRIC_BY_ID[id].label + ' (' + D.METRIC_BY_ID[id].unit + ')', id);
+    }));
+    if (state.recheckMetrics.includes(current)) $('#planRecheckMetric').value = current;
+    renderObservations($('#planRecheckHistory'), history);
+  }
+
+  function recordPlanRecheck(event) {
+    event.preventDefault();
+    if (state.mode === 'replay') return;
+    var id = $('#planRecheckMetric').value;
+    if (!state.recheckMetrics.includes(id)) return;
+    var input = $('#planRecheckValue');
+    var value = input.valueAsNumber;
+    var metric = D.METRIC_BY_ID[id];
+    if (!Number.isFinite(value) || value < metric.min || value > metric.max) {
+      toast('Enter a recheck within the supported input range.');
+      return;
+    }
+    var first = state.draft[id];
+    var originalWearable = state.wearable?.[id];
+    var originalQuality = state.quality[id];
+    var sample = { ...detectionInput(), values: { ...state.draft, [id]: value }, quality: { ...state.quality } };
+    delete sample.quality[id];
+    var detection = Detection.evaluate(sample, state.mission.entries);
+    var score = S.evaluate(sample.values, { ...sample, flightDay: sample.day, entries: state.mission.entries }, state.symptoms);
+    var hazards = Hazards?.evaluate({ ...sample, sleepTarget: 7.5, history: state.mission.entries }) || [];
+    var assessment = Detection.crewSuggestion(detection, state.mission.details, state.symptoms, score.alerts, hazards);
+    var flagged = assessment.findingCodes.some(function (code) {
+      return code.metric === id && (code.kind === 'alert' || code.kind === 'baseline_change');
+    });
+    state.confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({
+      first: first, second: value, source: state.source, originalQuality: originalQuality, originalWearable: originalWearable,
+      at: new Date().toISOString(), resolved: flagged ? 'confirmed' : 'below_threshold'
+    });
+    state.draft = sample.values;
+    state.quality = sample.quality;
+    if (state.wearable) delete state.wearable[id];
+    input.value = '';
+    syncCheckin();
+    refresh();
+    toast('Recheck added to the draft. Save check-in to keep it.');
+  }
 
   function renderObservations(container, observations) {
     container.replaceChildren(...observations.map(function (observation) {
@@ -795,6 +865,7 @@
     if (same && sameSym && saved.source === state.source && saved.activity === state.activity &&
         saved.crew === state.mission.crew && saved.note === state.note &&
         JSON.stringify(saved.quality) === JSON.stringify(state.quality) &&
+        JSON.stringify(saved.confirm || {}) === JSON.stringify(state.confirm) &&
         JSON.stringify(saved.wearable || {}) === JSON.stringify(state.wearable || {})) {
       node.textContent = 'Saved for flight day ' + state.mission.flightDay + '.';
       node.className = 'save-state is-saved';
@@ -828,6 +899,7 @@
       symptoms: state.symptoms.slice().sort(),
       note: state.note || '',
       wearable: state.wearable,
+      confirm: state.confirm,
       savedAt: new Date().toISOString()
     });
     var replaced = false;
@@ -1042,6 +1114,8 @@
       toast('Score added to the draft note. Save check-in to keep it.');
       return true;
     });
+    $('#planRecheckForm').addEventListener('submit', recordPlanRecheck);
+    $('#planRecheckMetric').addEventListener('change', function () { $('#planRecheckValue').value = ''; });
     $('#runGemini').addEventListener('click', runGemini);
     $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */

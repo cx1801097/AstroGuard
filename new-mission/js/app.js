@@ -2191,13 +2191,15 @@
       trial[id] = second;
       var r = evaluateValues(trial, entry);
       var level = r.results[id] ? r.results[id].level : 0;
-      confirm[id] = {
+      confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({
+        source: 'measured',
+        firstAt: entry.wearable?.[id]?.timestamp || entry.at,
         first: first,
         second: second,
         at: nowISO(),
         resolved: level >= 3 ? 'confirmed' : 'below_threshold',
         originalWearable: entry.wearable?.[id]
-      };
+      });
       values[id] = second;
       if (entry.wearable) delete entry.wearable[id];
     });
@@ -2223,7 +2225,9 @@
     if (!entry) return;
     var confirm = clone(entry.confirm || {});
     (entry.pending || []).forEach(function (id) {
-      confirm[id] = { first: entry.values[id], second: null, at: nowISO(), resolved: 'unverified' };
+      confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({ first: entry.values[id],
+        at: nowISO(), firstAt: entry.wearable?.[id]?.timestamp || entry.at,
+        resolved: 'unverified', source: 'measured', originalWearable: entry.wearable?.[id] });
     });
     entry.confirm = confirm;
     entry.pending = [];

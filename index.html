@@ -602,6 +602,16 @@
               <h4 id="hazardReviewTitle">Spaceflight hazard detection</h4>
               <div id="hazardResults"></div>
             </section>
+            <section id="planRecheck" class="card" hidden>
+              <h4>Recheck a flagged reading</h4>
+              <p class="muted">Follow urgent mission procedures immediately when indicated. Record a repeat reading when appropriate.</p>
+              <form id="planRecheckForm">
+                <label class="field">Reading to recheck <select id="planRecheckMetric"></select></label>
+                <label class="field">Repeat reading <input type="number" step="any" id="planRecheckValue" required></label>
+                <button type="submit" class="btn">Record recheck</button>
+              </form>
+              <ul id="planRecheckHistory"></ul>
+            </section>
             <details id="groundReview" class="card alert-card" hidden>
               <summary>Review ground handoff</summary>
               <p>Review the draft and copy it into the mission’s approved private medical channel when appropriate. The demo has no connection to NASA.</p>
@@ -679,12 +689,13 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
-<script src="js/detection.js?v=3"></script>
+<script src="js/detection.js?v=4"></script>
 <script src="js/hazard-monitor.js?v=3"></script>
 <script src="js/scoring.js?v=2"></script>
 <script src="js/charts.js"></script>
 <script src="js/body-map.js"></script>
-<script src="js/storage.js"></script>
+<script src="js/follow-up.js"></script>
+<script src="js/storage.js?v=2"></script>
 <script src="data/sample-mission.js"></script>
 <script src="data/i4-replay.js"></script>
 <script src="data/cloud-ai-config.js?v=1"></script>
@@ -695,7 +706,7 @@
 <script src="js/astroguard-evidence.js"></script>
 <script src="js/self-check.js"></script>
 <script src="js/cognitive-check.js"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>

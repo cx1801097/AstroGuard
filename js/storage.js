@@ -53,6 +53,7 @@ window.CC_STORAGE = (function () {
       source: window.CC_DETECTION.provenance(e.source),
       activity: e.activity === 'rest' || e.activity === 'exercise' ? e.activity : 'unknown',
       quality: e.quality && typeof e.quality === 'object' ? e.quality : {},
+      confirm: window.CC_FOLLOW_UP?.normalizeRechecks(e.confirm) || {},
       values: e.values,
       symptoms: Array.isArray(e.symptoms) ? e.symptoms : [],
       note: typeof e.note === 'string' ? e.note : '',

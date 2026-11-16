@@ -196,15 +196,15 @@
     }
   }
 
-  function reviewReport(day, assessment) {
+  function reviewReport(day, assessment, includeFollowUp = false) {
     const { priority } = guidance(assessment.severity);
-    if (!priority) return '';
+    if (!priority && !includeFollowUp) return '';
     const heading = assessment.source === 'measured'
       ? 'ASTROGUARD | Draft for crew review'
       : 'ASTROGUARD | Demonstration or unverified data — do not use for operational reporting';
     return [
       heading,
-      priority,
+      priority || 'Follow-up record',
       'Flight day ' + (Number.isInteger(day) ? day : 'unspecified'),
       'Source: ' + sourceLabels[assessment.source],
       'Activity: ' + assessment.activity,
