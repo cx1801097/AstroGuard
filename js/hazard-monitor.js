@@ -26,9 +26,11 @@
     const sleep = get('sleepHours', 0, 24);
     const target = Number.isFinite(sleepTarget) && sleepTarget > 0 && sleepTarget <= 24 ? sleepTarget : null;
     const mood = get('mood', 1, 5);
-    const previous = Number.isInteger(day) && day > 1 && crew &&
-      history.findLast(entry => entry.day === day - 1 && entry.crew === crew && entry.source === source);
-    const previousSleep = previous ? read(previous.values, previous.quality, 'sleepHours', 0, 24) : null;
+    const previous = Number.isInteger(day) && day > 1 && crew
+      ? history.filter(entry => entry.day === day - 1 && entry.crew === crew && entry.source === source)
+      : [];
+    const previousSleep = previous.length === 1
+      ? read(previous[0].values, previous[0].quality, 'sleepHours', 0, 24) : null;
     const bone = get('boneDensityPct', -100, 100);
     const boneLimit = get('boneLossLimit', 0.01, 100);
     const co2 = get('cabinCo2Avg', 0, 760);

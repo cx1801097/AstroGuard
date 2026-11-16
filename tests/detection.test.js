@@ -222,3 +222,54 @@ test('a flagged pressure sensor is excluded while a chronic bone finding remains
   assert.match(suggestion.situation, /Bone density change/);
   assert.doesNotMatch(suggestion.situation, /220|Systolic/);
 });
+
+test('34-day simulated mission tracks stable checks, failed sensors, multiple hazards and recovery', () => {
+  const window = {};
+  for (const file of ['data.js', 'detection.js', 'scoring.js']) {
+    vm.runInNewContext(fs.readFileSync(require.resolve('../js/' + file), 'utf8'), { window });
+  }
+  const hazards = require('../js/hazard-monitor');
+  const base = {
+    heartRate: 68, spo2: 98, systolic: 118, sleepHours: 8, radiationDose: 30, radiationLimit: 50,
+    boneDensityPct: -1, boneLossLimit: 3, cabinCo2Avg: 2, wbc: 6, wbcLow: 4, wbcHigh: 11
+  };
+  const inputs = Array.from({ length: 30 }, (_, i) => checkIn(i + 1, { ...base }));
+  inputs.push(
+    checkIn(31, { ...base, spo2: 84, systolic: 220, cabinCo2Avg: 5 },
+      { quality: { spo2: 'invalid', systolic: 'invalid', cabinCo2Avg: 'invalid' } }),
+    checkIn(32, { ...base, spo2: 92, heartRate: 110, sleepHours: 5, radiationDose: 47, cabinCo2Avg: 3.5 }),
+    checkIn(33, { ...base, spo2: 92, heartRate: 110, sleepHours: 5, radiationDose: 51, cabinCo2Avg: 3.7,
+      boneDensityPct: -3.5, wbc: 12 }),
+    checkIn(34, { ...base, radiationDose: 51, boneDensityPct: -3.5, wbc: 12 })
+  );
+  const results = inputs.map((sample, i) => {
+    const history = inputs.slice(0, i);
+    const vital = evaluate(sample, history);
+    const hazard = hazards.evaluate({ ...sample, history, sleepTarget: 7.5 });
+    const score = window.CC_SCORING.evaluate(sample.values, { ...sample, entries: history });
+    return { vital, hazard, suggestion: crewSuggestion(vital, {}, [], score.alerts, hazard) };
+  });
+  assert.ok(results.slice(0, 30).every(({ suggestion }) => suggestion.severity === 'NORMAL'));
+  assert.equal(results[30].suggestion.severity, 'UNKNOWN');
+  assert.equal(results[30].hazard.find(item => item.id === 'cabinCo2').status, 'UNKNOWN');
+  assert.doesNotMatch(results[30].suggestion.situation, /220 mmHg|Blood oxygen is 84/);
+  assert.equal(results[31].vital.severity, 'WARNING');
+  assert.equal(results[32].vital.severity, 'CRITICAL');
+  const warnings = results[32].hazard.filter(item => item.status === 'WARNING');
+  assert.deepEqual(warnings.map(item => item.id), ['radiationDose', 'sleepHours', 'boneDensityPct', 'cabinCo2', 'wbc']);
+  assert.match(warnings.find(item => item.id === 'sleepHours').detail, /two consecutive/);
+  assert.equal(results[33].vital.severity, 'NORMAL');
+  assert.equal(results[33].suggestion.severity, 'WARNING');
+  assert.deepEqual(results[33].hazard.filter(item => item.status === 'WARNING').map(item => item.id),
+    ['radiationDose', 'boneDensityPct', 'wbc']);
+});
+
+test('ambiguous or foreign prior readings cannot establish consecutive low sleep', () => {
+  const hazards = require('../js/hazard-monitor');
+  const current = checkIn(4, { sleepHours: 5 });
+  const history = [checkIn(3, { sleepHours: 5 }), checkIn(3, { sleepHours: 8 }),
+    checkIn(3, { sleepHours: 5 }, { crew: 'other' })];
+  const sleep = hazards.evaluate({ ...current, history, sleepTarget: 7.5 }).find(item => item.id === 'sleepHours');
+  assert.equal(sleep.status, 'WARNING');
+  assert.doesNotMatch(sleep.detail, /two consecutive/);
+});

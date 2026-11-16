@@ -62,3 +62,26 @@ test('daily quota uses a conditional DynamoDB increment and fails closed', async
   assert.equal(response.statusCode, 503);
   assert.doesNotMatch(response.body, /private AWS details/);
 });
+
+test('Lambda forwards a multi-risk review to the Bedrock Converse adapter without raw crew data', async () => {
+  const { createIamBedrockReview } = require('../bedrock');
+  const metrics = ['systolic', 'glucose', 'heartRate', 'cabinCo2', 'radiationDose', 'wbc'];
+  class ConverseCommand { constructor(input) { this.input = input; } }
+  class BedrockRuntimeClient {
+    async send(command) {
+      const input = JSON.parse(command.input.messages[0].content[0].text);
+      assert.deepEqual(input.findings.map(finding => finding.metric), metrics);
+      assert.ok(input.findings.every(finding => Object.keys(finding).length === 3));
+      assert.doesNotMatch(JSON.stringify(input), /private/);
+      return { output: { message: { content: [{ text: '{"priority":["0","1","3"],"clarification":"none"}' }] } } };
+    }
+  }
+  const review = createIamBedrockReview('ap-southeast-2', { ConverseCommand, BedrockRuntimeClient });
+  const handle = createHandler({ reserve: async () => true, review });
+  const response = await handle(event({
+    source: 'simulated', severity: 'CRITICAL', crewCallsign: 'private crew',
+    findings: metrics.map(metric => ({ kind: 'alert', metric, value: 999, note: 'private note' }))
+  }));
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(JSON.parse(response.body).priority, [0, 1, 3]);
+});
