@@ -73,7 +73,7 @@ test('Lambda forwards a multi-risk review to the Bedrock Converse adapter withou
       assert.deepEqual(input.findings.map(finding => finding.metric), metrics);
       assert.ok(input.findings.every(finding => Object.keys(finding).length === 3));
       assert.doesNotMatch(JSON.stringify(input), /private/);
-      return { output: { message: { content: [{ text: '{"priority":["0","1","3"],"clarification":"none"}' }] } } };
+      return { output: { message: { content: [{ text: '{"priority":["0","1","3"],"clarification":"4"}' }] } } };
     }
   }
   const review = createIamBedrockReview('ap-southeast-2', { ConverseCommand, BedrockRuntimeClient });
