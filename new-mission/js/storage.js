@@ -142,6 +142,11 @@ window.CC_STORAGE = (function () {
     return e && typeof e === 'object' && typeof e.at === 'string' && e.values && typeof e.values === 'object';
   }
 
+  function followUpTimestamp(value) {
+    return typeof value === 'string' && Number.isFinite(Date.parse(value))
+      ? new Date(value).toISOString() : null;
+  }
+
   function normalizeEntry(e) {
     var wearable = {};
     ['heartRate', 'spo2'].forEach(function (metric) {
@@ -155,6 +160,10 @@ window.CC_STORAGE = (function () {
       phase: e.phase === 'preflight' ? 'preflight' : 'flight',
       values: cleanValues(e.values),
       wearable: wearable,
+      followUp: {
+        acknowledgedAt: followUpTimestamp(e.followUp?.acknowledgedAt),
+        handoverAt: followUpTimestamp(e.followUp?.handoverAt)
+      },
       symptoms: Array.isArray(e.symptoms) ? e.symptoms.filter(function (s) { return typeof s === 'string'; }) : [],
       note: typeof e.note === 'string' ? e.note.slice(0, 400) : '',
       confirm: e.confirm && typeof e.confirm === 'object' ? e.confirm : {},

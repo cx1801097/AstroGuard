@@ -35,3 +35,21 @@ test('workout sources and inconsistent wearable provenance cannot become resting
   assert.equal(profile.instruments.vitals, false);
   assert.equal(storage.cloneProfile().instruments.vitals, true);
 });
+
+test('follow-up timestamps and the original wearable reading survive export and import', () => {
+  const later = '2026-11-14T13:15:00.000Z';
+  const originalWearable = { ...sample, value: 142 };
+  const mission = { ...storage.emptyRecord(), crewId: 'TEST', entries: [{
+    at, values: { heartRate: 72 },
+    followUp: { acknowledgedAt: at, handoverAt: later },
+    confirm: { heartRate: { first: 142, second: 72, resolved: 'below_threshold', at: later, originalWearable } }
+  }] };
+  const entry = storage.fromJSON(storage.toJSON(mission)).entries[0];
+  assert.equal(entry.followUp.acknowledgedAt, at);
+  assert.equal(entry.followUp.handoverAt, later);
+  assert.equal(entry.confirm.heartRate.originalWearable.timestamp, at);
+  assert.equal(entry.confirm.heartRate.first, 142);
+  assert.equal(entry.confirm.heartRate.second, 72);
+  mission.entries[0].followUp = { acknowledgedAt: 'invalid' };
+  assert.equal(storage.fromJSON(storage.toJSON(mission)).entries[0].followUp.acknowledgedAt, null);
+});
