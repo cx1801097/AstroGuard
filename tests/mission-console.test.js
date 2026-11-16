@@ -161,3 +161,25 @@ test('New Mission keeps activity and sensor quality through export and import', 
   assert.equal(entry.quality.spo2, 'invalid');
   assert.equal(Object.hasOwn(entry.quality, 'unrelated'), false);
 });
+
+test('mission timeline separates device sampling from check-in and repeat logging', () => {
+  const { build } = require('../new-mission/js/mission-timeline');
+  const logAt = '2026-11-14T13:05:00.000Z';
+  const repeatAt = '2026-11-14T13:12:00.000Z';
+  const originalWearable = { ...sample, value: 142 };
+  const events = build({
+    at: logAt,
+    values: { heartRate: 70, spo2: 88, cabinCo2Avg: 4, sleepTargetAtCheck: 8 },
+    quality: { spo2: 'invalid' },
+    symptoms: ['headache'],
+    confirm: { heartRate: { first: 142, second: 70, at: repeatAt, resolved: 'below_threshold', originalWearable } }
+  }, storage.cleanWearable);
+  assert.equal(events.length, 5);
+  assert.deepEqual(events[0], { kind: 'reading', metric: 'heartRate', value: 142, at,
+    timeBasis: 'device sample', device: 'ble-hrs', quality: null });
+  assert.equal(events.find(event => event.metric === 'cabinCo2Avg').timeBasis, 'check-in logged');
+  assert.equal(events.find(event => event.metric === 'spo2').quality, 'unreliable');
+  assert.equal(events.find(event => event.kind === 'symptom').at, logAt);
+  assert.equal(events.at(-1).timeBasis, 'recheck logged');
+  assert.equal(events.at(-1).at, repeatAt);
+});

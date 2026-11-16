@@ -646,11 +646,6 @@
     if (!pending.length && Object.keys(entry.confirm || {}).length) {
       badges.push('<span class="badge badge-confirmed">FOLLOW-UP RECORDED</span>');
     }
-    var wearableSources = Object.values(entry.wearable || {}).map(function (sample) {
-      var label = D.METRIC_BY_ID[sample.metric]?.label || 'Cabin CO₂, one-hour average';
-      return '<li>' + esc(label + ': ' + sample.value + ' ' + sample.unit + ' · ' + (sample.deviceId || sample.provider) + ' · ' + sample.timestamp) + '</li>';
-    }).join('');
-
     return '<article class="check-card">' +
       '<div class="check-meta">' +
         '<div class="check-when"><strong>' + esc(dayLabel(entry)) + '</strong>' +
@@ -659,14 +654,35 @@
       '</div>' +
       verdictHero(result) +
       driversCard(result) +
-      (wearableSources ? '<section class="card"><h4>Device readings used</h4><ul class="wearable-sources">' +
-        wearableSources + '</ul></section>' : '') +
+      timelineCard(entry) +
       (pending.length ? confirmCard(entry, result) : '') +
       actionsCard(result) +
       evidenceCard(result) +
       followUpCard(entry, result) +
       handoverCard(entry, result) +
     '</article>';
+  }
+
+  function timelineCard(entry) {
+    var readings = window.CC_MISSION_TIMELINE.build(entry, Store.cleanWearable);
+    var extra = {
+      cabinCo2Avg: { label: 'Cabin CO₂, one-hour average', unit: 'mmHg' }
+    };
+    var rows = readings.flatMap(function (reading) {
+      var metric = D.METRIC_BY_ID[reading.metric] || extra[reading.metric];
+      var symptom = D.SYMPTOM_BY_ID[reading.symptom];
+      if (!metric && !symptom) return [];
+      var text = symptom ? symptom.label : metric.label + ': ' + reading.value + ' ' + metric.unit;
+      if (reading.device) text += ' · ' + reading.device;
+      if (reading.quality) text += ' · unreliable';
+      if (reading.outcome) text += reading.outcome === 'confirmed'
+        ? ' · still flagged' : ' · below the alert threshold on recheck';
+      return ['<li>' + esc((reading.at || 'Time unavailable') + ' · ' + reading.timeBasis + ' · ' + text) + '</li>'];
+    });
+    if (!rows.length) return '';
+    return '<details class="card"><summary>Reading and symptom timeline</summary>' +
+      '<p class="muted">Check-in and symptom report times indicate when entries were logged. Device times indicate when readings were collected.</p>' +
+      '<ol>' + rows.join('') + '</ol></details>';
   }
 
   function verdictLine(result) {
@@ -2209,7 +2225,7 @@
       var level = r.results[id] ? r.results[id].level : 0;
       confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({
         source: 'measured',
-        firstAt: entry.wearable?.[id]?.timestamp || entry.at,
+        firstAt: entry.wearable?.[id]?.timestamp,
         first: first,
         second: second,
         at: nowISO(),
@@ -2242,7 +2258,7 @@
     var confirm = clone(entry.confirm || {});
     (entry.pending || []).forEach(function (id) {
       confirm[id] = window.CC_FOLLOW_UP.normalizeRecheck({ first: entry.values[id],
-        at: nowISO(), firstAt: entry.wearable?.[id]?.timestamp || entry.at,
+        at: nowISO(), firstAt: entry.wearable?.[id]?.timestamp,
         resolved: 'unverified', source: 'measured', originalWearable: entry.wearable?.[id] });
     });
     entry.confirm = confirm;
