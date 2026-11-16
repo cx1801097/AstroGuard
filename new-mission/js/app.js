@@ -666,7 +666,9 @@
   function timelineCard(entry) {
     var readings = window.CC_MISSION_TIMELINE.build(entry, Store.cleanWearable);
     var extra = {
-      cabinCo2Avg: { label: 'Cabin CO₂, one-hour average', unit: 'mmHg' }
+      cabinCo2Avg: { label: 'Cabin CO₂, one-hour average', unit: 'mmHg' },
+      cabinPressure: { label: 'Cabin total pressure', unit: 'kPa' },
+      cabinOxygen: { label: 'Cabin oxygen partial pressure', unit: 'kPa' }
     };
     var rows = readings.flatMap(function (reading) {
       var metric = D.METRIC_BY_ID[reading.metric] || extra[reading.metric];

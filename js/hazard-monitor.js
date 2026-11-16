@@ -4,6 +4,12 @@
   const co2Reference = 'https://www.nasa.gov/reference/6-0-natural-and-induced-environments-vol-2/';
   const fields = [
     ['cabinCo2Avg', 'Cabin CO₂, verified one-hour average (mmHg)', 0, 760],
+    ['cabinPressure', 'Cabin total pressure (kPa)', 0, 1000],
+    ['cabinPressureLow', 'Mission lower cabin pressure limit (kPa)', 0, 1000],
+    ['cabinPressureHigh', 'Mission upper cabin pressure limit (kPa)', 0, 1000],
+    ['cabinOxygen', 'Cabin oxygen partial pressure (kPa)', 0, 1000],
+    ['cabinOxygenLow', 'Mission lower cabin oxygen partial pressure limit (kPa)', 0, 1000],
+    ['cabinOxygenHigh', 'Mission upper cabin oxygen partial pressure limit (kPa)', 0, 1000],
     ['radiationLimit', 'Mission cumulative-dose review limit (mSv)', 0.01, 100000],
     ['boneLossLimit', 'Mission bone-density loss review point (%)', 0.01, 100],
     ['wbc', 'White blood cells (thousand/µL)', 0, 1000],
@@ -11,7 +17,7 @@
     ['wbcHigh', 'Lab’s white blood cell upper limit (thousand/µL)', 0, 1000]
   ];
   const extraFields = fields.map(([id]) => id);
-  const observationFields = ['cabinCo2Avg', 'radiationDose', 'boneDensityPct', 'sleepHours', 'mood', 'wbc', 'wbcLow', 'wbcHigh'];
+  const observationFields = ['cabinCo2Avg', 'cabinPressure', 'cabinOxygen', 'radiationDose', 'boneDensityPct', 'sleepHours', 'mood', 'wbc', 'wbcLow', 'wbcHigh'];
 
   function read(values, quality, key, min, max) {
     const value = values?.[key];
@@ -42,6 +48,17 @@
     const result = (id, title, warning, compared, detail, next, url) => ({
       id, title, status: warning ? 'WARNING' : compared ? 'WITHIN CHECK LIMIT' : 'UNKNOWN', detail, next, url
     });
+    function environmentRange(id, title, next) {
+      const value = get(id, 0, 1000);
+      const low = get(id + 'Low', 0, 1000);
+      const high = get(id + 'High', 0, 1000);
+      const validLimits = low !== null && high !== null && low < high;
+      const compared = value !== null && validLimits;
+      const detail = value === null ? 'No usable cabin reading.' : value + ' kPa.' +
+        (validLimits ? ' Mission limits: ' + low + '–' + high + ' kPa.' :
+          ' Enter the mission-approved lower and upper limits for this measurement.');
+      return result(id, title, compared && (value < low || value > high), compared, detail, next, co2Reference);
+    }
     return [
       result('radiationDose', 'Radiation', dose !== null && doseLimit !== null && dose >= doseLimit, dose !== null && doseLimit !== null,
         dose === null ? 'No usable cumulative personal dose.' : dose + ' mSv cumulative personal dose' +
@@ -60,6 +77,10 @@
       result('cabinCo2', 'Closed environment · cabin CO₂', co2 !== null && co2 > 3, co2 !== null,
         co2 === null ? 'No verified one-hour cabin CO₂ average.' : co2 + ' mmHg over one hour. The nominal NASA limit is 3 mmHg.',
         'Confirm the cabin reading and follow the vehicle’s environmental procedures if it exceeds the limit.', co2Reference),
+      environmentRange('cabinPressure', 'Closed environment · cabin total pressure',
+        'Confirm cabin pressure and follow the approved vehicle procedure if it is outside the mission range.'),
+      environmentRange('cabinOxygen', 'Closed environment · cabin oxygen partial pressure',
+        'Confirm cabin oxygen partial pressure and follow the approved vehicle procedure if it is outside the mission range.'),
       result('wbc', 'Immune monitoring · white blood cells', wbc !== null && knownRange && (wbc < low || wbc > high), wbc !== null && knownRange,
         wbc === null ? 'No usable white blood cell count.' : wbc + ' thousand/µL' +
           (knownRange ? ' against the reported lab interval of ' + low + '–' + high + ' thousand/µL.'
@@ -114,7 +135,7 @@
       if (finding.url) {
         const link = document.createElement('a');
         link.href = finding.url;
-        link.textContent = 'NASA CO₂ standard';
+        link.textContent = finding.id === 'cabinCo2' ? 'NASA CO₂ standard' : 'NASA cabin environment standard';
         item.append(link);
       }
       list.append(item);

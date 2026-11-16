@@ -183,3 +183,25 @@ test('mission timeline separates device sampling from check-in and repeat loggin
   assert.equal(events.at(-1).timeBasis, 'recheck logged');
   assert.equal(events.at(-1).at, repeatAt);
 });
+
+test('cabin pressure and oxygen partial pressure use separate mission ranges and quality flags', () => {
+  const hazards = require('../js/hazard-monitor');
+  const context = { source: 'measured', values: {
+    cabinPressure: 68, cabinPressureLow: 70, cabinPressureHigh: 105,
+    cabinOxygen: 19, cabinOxygenLow: 18, cabinOxygenHigh: 23, spo2: 88
+  } };
+  const find = (input, id) => hazards.evaluate(input).find(reading => reading.id === id);
+  assert.equal(find(context, 'cabinPressure').status, 'WARNING');
+  assert.equal(find(context, 'cabinOxygen').status, 'WITHIN CHECK LIMIT');
+  assert.equal(find({ ...context, quality: { cabinPressure: 'invalid' } }, 'cabinPressure').status, 'UNKNOWN');
+  assert.equal(find({ ...context, values: { ...context.values, cabinOxygenLow: 25 } }, 'cabinOxygen').status, 'UNKNOWN');
+  assert.equal(find({ ...context, source: 'digitized' }, 'cabinPressure').status, 'UNKNOWN');
+  assert.equal(find({ ...context, values: { ...context.values, cabinOxygen: 23 } }, 'cabinOxygen').status, 'WITHIN CHECK LIMIT');
+});
+
+test('equipment adapter accepts cabin pressure in kPa and keeps original time', () => {
+  const { observation } = require('../new-mission/js/mission-interfaces');
+  const input = { metric: 'cabinPressure', value: 91, unit: 'kPa', quality: 'usable', timestamp: at, deviceId: 'cabin-1' };
+  assert.equal(observation(input).timestamp, at);
+  assert.equal(observation({ ...input, unit: 'mmHg' }), null);
+});
