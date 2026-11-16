@@ -261,3 +261,13 @@ test('missing reasons survive storage, and saved numeric measurements override s
   assert.equal(entry.missingReasons.spo2, 'reading_unreliable');
   assert.equal(Object.hasOwn(entry.values, 'spo2'), false);
 });
+
+test('New Mission action card lists hazard procedures when health actions are empty', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../new-mission/js/app.js'), 'utf8');
+  const card = app.slice(app.indexOf('  function actionsCard('), app.indexOf('  function evidenceCard('));
+  const context = vm.createContext({ collectActions: () => [], esc: value => value });
+  vm.runInContext(card, context);
+  const html = context.actionsCard({ hazardWarnings: [{ title: 'Cabin pressure', next: 'Verify the cabin reading.' }] });
+  assert.match(html, /Verify the cabin reading/);
+  assert.doesNotMatch(html, /Nothing beyond/);
+});

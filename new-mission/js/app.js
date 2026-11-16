@@ -828,23 +828,9 @@
   }
 
   function actionsCard(result) {
-    var seen = {};
-    var out = [];
-    var order = D.SYSTEMS.slice().sort(function (a, b) {
-      return (result.systems[b.id].severity || 0) - (result.systems[a.id].severity || 0);
-    });
-
-    order.forEach(function (sys) {
-      var r = result.systems[sys.id];
-      if (!r.assessed || r.status === 'GO') return;
-      r.actions.forEach(function (a) {
-        if (seen[a]) return;
-        seen[a] = true;
-        out.push({ text: a, system: sys.name });
-      });
-    });
-
-    out = out.slice(0, 6);
+    var out = collectActions(result).concat((result.hazardWarnings || []).map(function (item) {
+      return { text: item.next, system: item.title };
+    }));
 
     var body = out.length
       ? '<ol class="action-list">' + out.map(function (a) {
