@@ -183,3 +183,20 @@ claim, use a held-out set with independent review and report counts for
 missed alerts, false alerts and unassessable cases by condition and source.
 The cloud review receives simulated finding codes and ranks them. Safety
 thresholds, quality exclusions and urgent guidance run locally.
+
+## Super Intelligence (SI) disclosure
+
+OpenAI Codex assisted with implementation, debugging, automated tests and
+documentation across the browser consoles, health logic, wearable integration
+and deployment. The landing artwork is an SI-generated illustration and is
+visibly marked on the homepage. The repository includes no SI-generated audio
+or video. The machine-readable inventory is [si-disclosure.json](si-disclosure.json).
+
+The simulator, mission walkthrough and test fixtures use SI-assisted synthetic
+inputs. Inspiration4 replay uses published results and source-derived
+digitized estimates, with provenance shown in the replay. SI assisted the
+code that integrates and displays those sources.
+
+The public Amazon Nova Micro review ranks coded simulated findings. Qwen3 is
+optional for local review. Health alerts and fallback guidance are computed
+by deterministic rules.

@@ -1,7 +1,7 @@
 /* ============================================================
    ASTROGUARD — sample-mission.js
    A deterministic 30-day demonstration mission so the console has
-   something to plot before real crew data exists.
+   something to plot before real crew data exists. SI-assisted synthetic data.
 
    Replace this with your teammate's dataset; the shape is:
      { name, crew, flightDay, entries:[ {day, values, symptoms, note} ] }
@@ -63,7 +63,7 @@ window.CC_SAMPLE = (function () {
 
     return {
       version: 1,
-      name: 'ARTEMIS VII',
+      name: 'ASTROGUARD TRAINING',
       crew: 'CDR-1',
       flightDay: START_DAY + DAYS - 1,
       entries: entries

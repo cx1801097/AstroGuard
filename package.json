@@ -2,6 +2,7 @@
   "name": "astroguard",
   "version": "1.0.0",
   "private": true,
+  "superIntelligenceDisclosure": "si-disclosure.json",
   "scripts": {
     "test": "node --test"
   },
