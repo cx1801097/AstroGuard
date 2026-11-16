@@ -13,6 +13,7 @@
   var Store = window.CC_STORAGE;
   var Detection = window.CC_DETECTION;
   var Hazards = window.CC_HAZARDS;
+  var SelfCheck = window.CC_SELF_CHECK;
   var LocalAI = window.CC_LOCAL_AI;
   var cloudAIUrl = location.origin === 'https://cx1801097.github.io' &&
     /^https:\/\/[a-z0-9]+\.lambda-url\.ap-southeast-2\.on\.aws\/$/.test(window.CC_CLOUD_AI_URL || '')
@@ -941,7 +942,86 @@
   /* ============================================================
      EVENTS
      ============================================================ */
+  function bindSelfCheck() {
+    var form = $('#selfCheckForm');
+    var result = $('#selfCheckResult');
+    var message = $('#selfCheckError');
+    var reviewed = null;
+    var reviewContext = null;
+    $('#selfCheckTests').innerHTML = SelfCheck.groups.map(function (group) {
+      return '<fieldset><legend>' + esc(group.title) + '</legend><p class="muted">' + esc(group.hint) + '</p>' +
+        group.metrics.map(function (id) {
+          var metric = D.METRIC_BY_ID[id];
+          return '<label class="field">' + esc(metric.label + ' (' + metric.unit + ')') +
+            '<input name="' + id + '" type="number" inputmode="decimal" min="' + metric.min +
+            '" max="' + metric.max + '" step="any"></label>';
+        }).join('') + '</fieldset>';
+    }).join('') + '<fieldset><legend>Symptoms</legend>' + D.SYMPTOMS.map(function (symptom) {
+      return '<label class="self-check-symptom"><input type="checkbox" name="symptoms" value="' +
+        symptom.id + '"> ' + esc(symptom.label) + '</label>';
+    }).join('') + '</fieldset>';
+
+    function resetReview() {
+      reviewed = null;
+      message.textContent = '';
+      result.hidden = true;
+    }
+    form.addEventListener('input', resetReview);
+    form.addEventListener('reset', resetReview);
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      resetReview();
+      if (state.mode === 'replay') return;
+      try {
+        reviewed = SelfCheck.read(new FormData(form), D);
+      } catch (error) {
+        message.textContent = error.message;
+        return;
+      }
+      var sample = Object.assign(detectionInput(), reviewed, { source: 'measured', quality: {} });
+      reviewContext = { day: sample.day, crew: sample.crew };
+      var detection = Detection.evaluate(sample, state.mission.entries);
+      var score = S.evaluate(sample.values, { activity: sample.activity,
+        flightDay: sample.day, entries: state.mission.entries }, sample.symptoms);
+      var hazards = Hazards?.evaluate({ ...sample, sleepTarget: 7.5, history: state.mission.entries }) || [];
+      var suggestion = Detection.crewSuggestion(detection, state.mission.details, sample.symptoms, score.alerts, hazards);
+      $('#selfCheckSeverity').textContent = suggestion.severity + ' · Self-check result';
+      var readings = Object.entries(sample.values).map(function ([id, value]) {
+        var metric = D.METRIC_BY_ID[id];
+        return metric.label + ': ' + value + ' ' + metric.unit;
+      });
+      renderObservations($('#selfCheckReadings'), readings.length ? readings : ['Symptoms only. No measurements entered.']);
+      renderObservations($('#selfCheckObservations'), suggestion.observations);
+      $('#selfCheckNext').textContent = suggestion.next;
+      $('#selfCheckResources').textContent = suggestion.resource;
+      result.hidden = false;
+    });
+
+    $('#selfCheckUse').addEventListener('click', function () {
+      if (!reviewed || state.mode === 'replay') return;
+      if (reviewContext.day !== state.mission.flightDay || reviewContext.crew !== state.mission.crew) {
+        form.reset();
+        message.textContent = 'The crew member or flight day changed. Enter readings for the current check-in.';
+        return;
+      }
+      var saved = entryForDay(state.mission.flightDay);
+      if (saved && (Detection.provenance(saved.source) !== 'measured' ||
+          (saved.crew && saved.crew !== state.mission.crew))) {
+        toast('Use a new flight day for this measured self-check. A different record is already saved for this day.');
+        return;
+      }
+      if ((Object.keys(state.draft).length || state.symptoms.length || state.note) &&
+          !window.confirm('Replace the current check-in draft with these measured self-check results?')) return;
+      setDraft({ ...reviewed, source: 'measured' });
+      syncCheckin();
+      refresh();
+      $('[data-tab="plan"]').click();
+      toast('Measured self-check added to the draft. Save check-in to keep it.');
+    });
+  }
+
   function bindEvents() {
+    bindSelfCheck();
     $('#runGemini').addEventListener('click', runGemini);
     $('#runLocalAI').addEventListener('click', runLocalAI);
     /* tabs */
@@ -1071,6 +1151,9 @@
   function open(mode, mission, scope) {
     if (mode !== 'replay' && state.mode === mode && state.scope === scope && state.mission) return;
     state.mode = mode;
+    $('#selfCheckTab').hidden = mode === 'replay';
+    $('#selfCheckForm').reset();
+    if (mode === 'replay' && state.tab === 'self-check') $('[data-tab="body"]').click();
     state.scope = scope;
     state.mission = mission;
     var today = entryForDay(state.mission.flightDay);

@@ -817,3 +817,20 @@ input[type="range"]::-moz-range-thumb {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+.self-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr));
+  gap: 14px;
+  margin-block: 12px;
+}
+.self-check-grid fieldset {
+  border: 1px solid #263c52;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+}
+.self-check-grid legend { padding-inline: 4px; font-weight: 600; }
+.self-check-grid .field { margin-block: 10px; }
+.self-check-symptom { display: block; margin-block: 7px; }
+.self-check-result { margin-top: 14px; }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ASTROGUARD — in-flight health self-assessment console for long-duration space missions.">
 <title>ASTROGUARD — In-Flight Health Console</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2">
 <link rel="stylesheet" href="css/home.css">
 </head>
 <body class="is-landing">
@@ -363,6 +363,7 @@
       <nav class="tabs" role="tablist" aria-label="Console views">
         <button class="tab is-active" data-tab="body" role="tab" aria-selected="true">Body map</button>
         <button class="tab" data-tab="trends" role="tab" aria-selected="false">Trends</button>
+        <button class="tab" id="selfCheckTab" data-tab="self-check" role="tab" aria-selected="false">Self-check tests</button>
         <button class="tab" data-tab="plan" role="tab" aria-selected="false">Action plan</button>
         <button class="tab" data-tab="log" role="tab" aria-selected="false">Mission log</button>
         <button class="tab" id="nasaLiveTab" data-tab="environment" role="tab" aria-selected="false" hidden>Environment</button>
@@ -496,6 +497,34 @@
       </div>
 
       <!-- ACTION PLAN -->
+      <div class="pane" data-pane="self-check">
+        <section class="card">
+          <h3>Crew self-check</h3>
+          <p>Use readings you actually measured. Skip tests you cannot do. Follow your mission emergency procedure for urgent symptoms.</p>
+          <form id="selfCheckForm">
+            <label class="field">Activity during vital readings
+              <select name="activity">
+                <option value="unknown">Unspecified</option>
+                <option value="rest">At rest</option>
+                <option value="exercise">During or just after exercise</option>
+              </select>
+            </label>
+            <div id="selfCheckTests" class="self-check-grid"></div>
+            <button type="submit" class="btn btn-primary">Review self-check</button>
+            <p id="selfCheckError" role="status"></p>
+          </form>
+        </section>
+        <section id="selfCheckResult" class="card self-check-result" hidden>
+          <h3 id="selfCheckSeverity" role="status"></h3>
+          <details><summary>Readings used</summary><ul id="selfCheckReadings"></ul></details>
+          <ul id="selfCheckObservations"></ul>
+          <p id="selfCheckNext"></p>
+          <p id="selfCheckResources"></p>
+          <button type="button" id="selfCheckUse" class="btn btn-quiet">Use in daily check-in</button>
+          <p class="muted">The local assessment uses your entered readings. Cloud AI reviews simulated examples only.</p>
+        </section>
+      </div>
+
       <div class="pane" data-pane="plan">
         <div class="plan-columns">
           <aside id="crewSuggestion" class="card crew-suggestion" aria-labelledby="crewSuggestionTitle">
@@ -633,7 +662,8 @@
 <script src="js/local-ai.js"></script>
 <script src="data/astroguard-evidence.js"></script>
 <script src="js/astroguard-evidence.js"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/self-check.js"></script>
+<script src="js/app.js?v=8"></script>
 <script src="data/i4-offline.js"></script>
 <script src="js/i4-records.js"></script>
 <script src="js/nasa-live.js"></script>
