@@ -125,3 +125,39 @@ test('the dashboard and New Mission flag severe pressure, then agree on the repe
   compare(emergency, true);
   compare(repeat, false);
 });
+
+test('shared vital safety check excludes exercise pulse and failed sensors in both consoles', () => {
+  const detection = require('../js/detection');
+  const dashboard = { CC_DETECTION: detection };
+  const mission = { CC_DETECTION: detection };
+  for (const [directory, window] of [['../js', dashboard], ['../new-mission/js', mission]]) {
+    for (const file of ['data.js', 'scoring.js']) {
+      vm.runInNewContext(fs.readFileSync(path.join(__dirname, directory, file), 'utf8'), { window });
+    }
+  }
+  const values = { heartRate: 150, spo2: 88 };
+  for (const activity of ['unknown', 'exercise']) {
+    const ctx = { activity, quality: { spo2: 'invalid' }, flightDay: 3, source: 'measured', crew: 'TEST' };
+    assert.equal(dashboard.CC_SCORING.evaluate(values, ctx).results.heartRate.value, undefined);
+    assert.equal(mission.CC_SCORING.evaluate(values, ctx).results.heartRate.absent, true);
+    assert.equal(mission.CC_SCORING.evaluate(values, ctx).results.spo2.absent, true);
+  }
+  const ctx = { activity: 'rest', flightDay: 3, source: 'measured', crew: 'TEST' };
+  const rootVital = detection.evaluate({ ...ctx, day: 3, values });
+  const missionResult = mission.CC_SCORING.evaluate(values, ctx);
+  assert.equal(rootVital.severity, 'CRITICAL');
+  assert.equal(missionResult.results.spo2.level, 4);
+  assert.equal(missionResult.results.spo2.rule, 'vital-safety');
+  assert.equal(missionResult.triage, 'NO-GO');
+});
+
+test('New Mission keeps activity and sensor quality through export and import', () => {
+  const record = storage.fromJSON(JSON.stringify({ crewId: 'TEST', entries: [{
+    at, values: { heartRate: 150, spo2: 88 },
+    activity: 'exercise', quality: { spo2: 'invalid', unrelated: 'invalid' }
+  }] }));
+  const entry = storage.fromJSON(storage.toJSON(record)).entries[0];
+  assert.equal(entry.activity, 'exercise');
+  assert.equal(entry.quality.spo2, 'invalid');
+  assert.equal(Object.hasOwn(entry.quality, 'unrelated'), false);
+});

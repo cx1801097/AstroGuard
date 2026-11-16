@@ -163,6 +163,9 @@ window.CC_STORAGE = (function () {
       at: e.at,
       day: isNum(e.day) ? e.day : null,
       phase: e.phase === 'preflight' ? 'preflight' : 'flight',
+      activity: e.activity === 'rest' || e.activity === 'exercise' ? e.activity : 'unknown',
+      quality: Object.fromEntries(['heartRate', 'spo2'].filter(metric => e.quality?.[metric] === 'invalid')
+        .map(metric => [metric, 'invalid'])),
       values: cleanValues(e.values),
       wearable: wearable,
       followUp: {

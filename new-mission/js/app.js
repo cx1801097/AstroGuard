@@ -216,6 +216,10 @@
       baseline: state.record.baseline,
       personal: state.record.baseline,
       plannedDays: prof.plannedDays,
+      activity: entry ? entry.activity || 'unknown' : undefined,
+      quality: entry?.quality,
+      source: entry?.phase === 'flight' ? 'measured' : undefined,
+      crew: state.record.crewId,
       sleepTargetHours: prof.sleepTargetHours
     }, (entry && entry.symptoms) || []);
   }
@@ -228,7 +232,7 @@
     var crew = state.record.crewId;
     var candidate = entry || { values: state.draft, day: nextFlightDay(state.preflight ? 'preflight' : 'flight', nowISO()) };
     return {
-      values: candidate.values, source: 'measured', day: state.record.missionStart ? candidate.day : null, crew: crew,
+      values: candidate.values, quality: candidate.quality, source: 'measured', day: state.record.missionStart ? candidate.day : null, crew: crew,
       sleepTarget: candidate.values.sleepTargetAtCheck ?? profile().sleepTargetHours,
       history: entries().filter(function (previous) { return previous.phase === 'flight'; }).map(function (previous) {
         return { day: previous.day, crew: crew, source: 'measured', values: previous.values };
@@ -582,6 +586,13 @@
       : result.triage === 'CAUTION' ? 'If it is safe, repeat any unusual readings. Tell the crew medical officer if the unusual reading persists or you feel unwell.'
       : result.triage === 'NO DATA' ? 'Enter the readings you can safely collect. Tell the crew medical officer if you feel unwell.'
       : 'Continue scheduled checks. Tell the crew medical officer if you feel unwell.';
+    var exclusions = [];
+    if (Number.isFinite(entry.values.heartRate) && entry.activity !== 'rest' && entry.quality?.heartRate !== 'invalid') {
+      exclusions.push('Resting heart rate was not assessed. Record activity and use a resting reading when appropriate.');
+    }
+    if (entry.quality?.heartRate === 'invalid' || entry.quality?.spo2 === 'invalid') {
+      exclusions.push('Readings marked unreliable were excluded from the assessment.');
+    }
     var inventory = profile().resources;
     var gear = [];
     if (result.triage === 'CAUTION' && inventory.pulseOximeter && (entry.pending || []).includes('spo2')) gear.push('pulse oximeter');
@@ -591,6 +602,7 @@
       (alerts.length ? '<ul>' + alerts.slice(0, 3).map(function (alert) {
         return '<li>' + esc(alert.text) + '</li>';
       }).join('') + '</ul>' : '') +
+      (exclusions.length ? '<p class="muted">' + esc(exclusions.join(' ')) + '</p>' : '') +
       '<h4>What to do next</h4><p>' + esc(next) + '</p>' +
       (gear.length ? '<p>For the recheck, use the listed ' + esc(gear.join(' and ')) + '.</p>' : '') +
       ((result.emergency || result.triage === 'NO-GO') && inventory.medicalChannel
@@ -837,6 +849,7 @@
     push('Comm delay    ' + commDelayLabel(p.commDelaySeconds));
     push('Sleep target  ' + p.sleepTargetHours + ' hours per day');
     push('Check         ' + dayLabel(entry) + ' \u00b7 ' + dateLabel(entry.at) + ' ' + timeLabel(entry.at));
+    push('Vital activity ' + (entry.activity || 'unknown'));
     push('Phase         ' + (entry.phase === 'preflight' ? 'preflight (baseline)' : 'in flight'));
     push('Status        ' + result.triage + ' \u2014 readiness ' + result.readiness + '/100 (' + stateWord + ')');
     push('Baseline      ' + baselineLine());
@@ -2123,12 +2136,17 @@
     values.sleepTargetAtCheck = profile().sleepTargetHours;
     var at = nowISO();
     var phase = state.preflight ? 'preflight' : 'flight';
+    var quality = {};
+    if ($('#missionInvalidPulse').checked) quality.heartRate = 'invalid';
+    if ($('#missionInvalidOxygen').checked) quality.spo2 = 'invalid';
 
     var entry = {
       id: Store.newId(),
       at: at,
       day: nextFlightDay(phase, at),
       phase: phase,
+      activity: $('#missionReadingActivity').value,
+      quality: quality,
       values: values,
       wearable: clone(state.wearableDraft),
       symptoms: state.symptoms.slice().sort(),
@@ -2154,6 +2172,7 @@
     state.ai = { entryId: null, status: 'idle', data: null, error: null };
     state.qa = [];
 
+    resetVitalContext();
     var saved = persist();
     renderAll();
     selectTab('assessment');
@@ -2234,22 +2253,33 @@
       'Unverified readings are in memory only. Storage is unavailable.');
   }
 
+  function resetVitalContext() {
+    $('#missionReadingActivity').value = 'unknown';
+    $('#missionInvalidPulse').checked = false;
+    $('#missionInvalidOxygen').checked = false;
+  }
+
   function copyLast() {
     var last = lastEntry();
     if (!last) return;
+    resetVitalContext();
     state.draft = clone(last.values);
     window.CC_HAZARDS?.observationFields.forEach(function (id) { delete state.draft[id]; });
     delete state.draft.sleepTargetAtCheck;
+    ['heartRate', 'spo2', 'systolic', 'diastolic', 'temperature', 'glucose'].forEach(function (id) {
+      delete state.draft[id];
+    });
     Object.keys(last.wearable || {}).forEach(function (id) { delete state.draft[id]; });
     state.wearableDraft = {};
     state.confirm = {};
     syncForm();
     renderAssessment();
     toast('Copied ' + Object.keys(state.draft).length + ' manual readings from ' + dayLabel(last) +
-      '. Change what is different.');
+      '. Enter fresh vital signs.');
   }
 
   function clearDraft() {
+    resetVitalContext();
     state.draft = {};
     state.wearableDraft = {};
     state.symptoms = [];
